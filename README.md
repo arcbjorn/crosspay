@@ -32,6 +32,8 @@ docker-compose up  # Optional services
 | Zama | Privacy | FHE encryption, selective disclosure |
 | Flare | Oracles | FTSO pricing, FDC proofs, RNG |
 | Filecoin | Storage | Receipt storage via IPFS |
+| AI (Protocol Labs) | AI Services | Copilot, risk scoring, normalization |
+| ENS | Identity | Name resolution, subnames |
 | Citrea | Bitcoin | BTC-denominated escrow |
 
 ## Core Interfaces
