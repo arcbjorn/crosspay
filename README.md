@@ -57,9 +57,8 @@ interface IConfidentialPayment extends IPaymentCore {
 
 ## Documentation
 
-- [Architecture Details](./docs/ARCHITECTURE.md)
-- [Deployment Guide](./docs/DEPLOYMENT.md)
-- [Track Implementations](./docs/DoD.md)
+- [Technical Architecture](./docs/ARCHITECTURE.md) - Complete system architecture and integration details
+- [Track Requirements & DoD](./docs/DoD.md) - Implementation checklist per blockchain
 
 ## License
 
