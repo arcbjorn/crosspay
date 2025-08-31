@@ -24,6 +24,10 @@ export class PaymentService {
     const totalValue = isETH ? parsedAmount + fee : 0n;
     
     try {
+      // Handle ERC20 token approval if needed
+      if (!isETH) {
+        await this.approveTokenIfNeeded(token, parsedAmount + fee, senderAddress);
+      }
       const { request } = await publicClient.simulateContract({
         address: contractAddress,
         abi: PaymentCoreABI,
@@ -164,6 +168,78 @@ export class PaymentService {
 
   formatAmount(amount: bigint): string {
     return formatEther(amount);
+  }
+
+  private async approveTokenIfNeeded(
+    tokenAddress: Address,
+    amount: bigint,
+    ownerAddress: Address
+  ): Promise<void> {
+    const publicClient = getPublicClient(this.chainId);
+    const walletClient = getWalletClient(this.chainId);
+    const contractAddress = getContractAddress(this.chainId, 'PaymentCore');
+
+    // ERC20 ABI for allowance and approve
+    const erc20ABI = [
+      {
+        name: 'allowance',
+        type: 'function',
+        stateMutability: 'view',
+        inputs: [
+          { name: 'owner', type: 'address' },
+          { name: 'spender', type: 'address' }
+        ],
+        outputs: [{ name: '', type: 'uint256' }]
+      },
+      {
+        name: 'approve',
+        type: 'function',
+        stateMutability: 'nonpayable',
+        inputs: [
+          { name: 'spender', type: 'address' },
+          { name: 'amount', type: 'uint256' }
+        ],
+        outputs: [{ name: '', type: 'bool' }]
+      }
+    ] as const;
+
+    try {
+      // Check current allowance
+      const currentAllowance = await publicClient.readContract({
+        address: tokenAddress,
+        abi: erc20ABI,
+        functionName: 'allowance',
+        args: [ownerAddress, contractAddress],
+      }) as bigint;
+
+      // If allowance is sufficient, no approval needed
+      if (currentAllowance >= amount) {
+        console.log('Sufficient token allowance already exists');
+        return;
+      }
+
+      console.log('Token approval required, requesting approval...');
+
+      // Request approval for the required amount
+      const { request } = await publicClient.simulateContract({
+        address: tokenAddress,
+        abi: erc20ABI,
+        functionName: 'approve',
+        args: [contractAddress, amount],
+        account: ownerAddress,
+      });
+
+      const hash = await walletClient.writeContract(request);
+      
+      // Wait for approval transaction to be mined
+      await publicClient.waitForTransactionReceipt({ hash });
+      
+      console.log('Token approval successful');
+
+    } catch (error) {
+      console.error('Token approval failed:', error);
+      throw new Error('Token approval failed. Please try again.');
+    }
   }
 }
 
