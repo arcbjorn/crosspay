@@ -5,8 +5,15 @@
   $: wallet = $walletStore;
   $: chain = $chainStore;
   
-  const handleConnect = async () => {
-    await connectWallet();
+  let showWalletOptions = false;
+
+  const handleConnect = async (connectorType?: 'metamask' | 'walletconnect') => {
+    showWalletOptions = false;
+    await connectWallet(connectorType);
+  };
+
+  const toggleWalletOptions = () => {
+    showWalletOptions = !showWalletOptions;
   };
   
   const handleDisconnect = () => {
@@ -76,14 +83,41 @@
       </ul>
     </div>
   {:else}
-    <button 
-      class="btn btn-primary"
-      class:loading={wallet.isConnecting}
-      disabled={wallet.isConnecting}
-      on:click={handleConnect}
-    >
-      {wallet.isConnecting ? 'Connecting...' : 'Connect Wallet'}
-    </button>
+    <div class="dropdown dropdown-end">
+      <div tabindex="0" role="button">
+        <button 
+          class="btn btn-primary"
+          class:loading={wallet.isConnecting}
+          disabled={wallet.isConnecting}
+          on:click={toggleWalletOptions}
+        >
+          {wallet.isConnecting ? 'Connecting...' : 'Connect Wallet'}
+        </button>
+      </div>
+      {#if showWalletOptions}
+        <ul tabindex="0" class="dropdown-content menu p-2 shadow bg-base-100 rounded-box w-60">
+          <li class="menu-title">Choose Wallet</li>
+          <li>
+            <button on:click={() => handleConnect('metamask')}>
+              <span>🦊</span>
+              <span>MetaMask</span>
+            </button>
+          </li>
+          <li>
+            <button on:click={() => handleConnect('walletconnect')}>
+              <span>🔗</span>
+              <span>WalletConnect</span>
+            </button>
+          </li>
+          <li>
+            <button on:click={() => handleConnect()}>
+              <span>💳</span>
+              <span>Browser Wallet</span>
+            </button>
+          </li>
+        </ul>
+      {/if}
+    </div>
   {/if}
 </div>
 
