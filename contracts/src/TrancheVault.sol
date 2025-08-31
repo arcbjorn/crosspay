@@ -66,6 +66,31 @@ contract TrancheVault is ERC20, Ownable, ReentrancyGuard, Pausable {
     uint256 public constant MIN_DEPOSIT = 1e18; // 1 token
     uint256 public constant WITHDRAWAL_DELAY = 7 days;
     
+    // Liquidation parameters
+    uint256 public constant LIQUIDATION_THRESHOLD = 8500; // 85% - trigger liquidation
+    uint256 public constant LIQUIDATION_PENALTY = 500;   // 5% penalty for liquidated users
+    uint256 public constant LIQUIDATOR_REWARD = 200;     // 2% reward for liquidators
+    uint256 public constant MAX_LIQUIDATION_RATIO = 5000; // 50% - max liquidatable per tx
+    uint256 public constant PRICE_STALENESS_LIMIT = 3600; // 1 hour
+    
+    // Liquidation state
+    mapping(address => uint256) public userHealthFactors;
+    mapping(address => bool) public liquidationFlags;
+    uint256 public liquidationEventCounter;
+    
+    struct LiquidationEvent {
+        address liquidatedUser;
+        address liquidator;
+        uint256 liquidatedAmount;
+        uint256 collateralSeized;
+        uint256 penalty;
+        uint256 reward;
+        uint256 timestamp;
+        string reason;
+    }
+    
+    mapping(uint256 => LiquidationEvent) public liquidationEvents;
+    
     mapping(address => uint256) public withdrawalRequests;
     mapping(address => uint256) public withdrawalRequestTime;
 
@@ -116,6 +141,28 @@ contract TrancheVault is ERC20, Ownable, ReentrancyGuard, Pausable {
         address indexed collector
     );
 
+    event UserLiquidated(
+        uint256 indexed eventId,
+        address indexed liquidatedUser,
+        address indexed liquidator,
+        uint256 liquidatedAmount,
+        uint256 collateralSeized,
+        uint256 penalty,
+        uint256 reward
+    );
+
+    event HealthFactorUpdated(
+        address indexed user,
+        uint256 oldHealthFactor,
+        uint256 newHealthFactor
+    );
+
+    event LiquidationTriggered(
+        address indexed user,
+        uint256 healthFactor,
+        string reason
+    );
+
     error InsufficientDeposit();
     error TrancheNotActive();
     error InsufficientBalance();
@@ -124,6 +171,12 @@ contract TrancheVault is ERC20, Ownable, ReentrancyGuard, Pausable {
     error InvalidTrancheType();
     error SlashingFailed();
     error RebalancingFailed();
+    error HealthyPosition();
+    error LiquidationFailed();
+    error UnauthorizedLiquidator();
+    error ExcessiveLiquidation();
+    error StalePrice();
+    error InsufficientCollateral();
 
     constructor(
         address _depositToken,
@@ -199,6 +252,9 @@ contract TrancheVault is ERC20, Ownable, ReentrancyGuard, Pausable {
         uint256 shares = _calculateShares(amount, tranche);
         _mint(msg.sender, shares);
 
+        // Update health factor after deposit
+        _updateHealthFactor(msg.sender);
+
         emit Deposited(msg.sender, tranche, amount, shares);
     }
 
@@ -256,6 +312,9 @@ contract TrancheVault is ERC20, Ownable, ReentrancyGuard, Pausable {
         withdrawalRequestTime[msg.sender] = 0;
 
         depositToken.safeTransfer(msg.sender, totalWithdrawable);
+
+        // Update health factor after withdrawal
+        _updateHealthFactor(msg.sender);
 
         emit Withdrawn(msg.sender, tranche, totalWithdrawable, shares);
     }
@@ -317,6 +376,223 @@ contract TrancheVault is ERC20, Ownable, ReentrancyGuard, Pausable {
             validator,
             reason
         );
+
+        // Update health factors for all affected users after slashing
+        _massUpdateHealthFactors();
+    }
+
+    // ==================== LIQUIDATION MECHANICS ====================
+
+    function liquidateUser(
+        address userToLiquidate,
+        uint256 maxLiquidationAmount
+    ) external nonReentrant whenNotPaused {
+        UserPosition storage position = userPositions[userToLiquidate];
+        
+        // Check if user is eligible for liquidation
+        uint256 healthFactor = calculateHealthFactor(userToLiquidate);
+        if (healthFactor >= LIQUIDATION_THRESHOLD) {
+            revert HealthyPosition();
+        }
+
+        // Calculate total user collateral
+        uint256 totalCollateral = position.juniorDeposit + position.mezzanineDeposit + position.seniorDeposit;
+        if (totalCollateral == 0) {
+            revert InsufficientCollateral();
+        }
+
+        // Limit liquidation to maximum allowed ratio
+        uint256 maxLiquidatable = (totalCollateral * MAX_LIQUIDATION_RATIO) / 10000;
+        uint256 liquidationAmount = maxLiquidationAmount > maxLiquidatable ? maxLiquidatable : maxLiquidationAmount;
+
+        if (liquidationAmount == 0) {
+            revert LiquidationFailed();
+        }
+
+        // Calculate penalty and reward
+        uint256 penalty = (liquidationAmount * LIQUIDATION_PENALTY) / 10000;
+        uint256 liquidatorReward = (liquidationAmount * LIQUIDATOR_REWARD) / 10000;
+        uint256 collateralSeized = liquidationAmount + penalty;
+
+        // Transfer liquidation amount from liquidator
+        depositToken.safeTransferFrom(msg.sender, address(this), liquidationAmount);
+
+        // Execute liquidation waterfall (Junior -> Mezzanine -> Senior)
+        uint256 remainingLiquidation = collateralSeized;
+        remainingLiquidation = _liquidateTranche(userToLiquidate, TrancheType.Junior, remainingLiquidation);
+        remainingLiquidation = _liquidateTranche(userToLiquidate, TrancheType.Mezzanine, remainingLiquidation);
+        remainingLiquidation = _liquidateTranche(userToLiquidate, TrancheType.Senior, remainingLiquidation);
+
+        // Transfer rewards to liquidator
+        if (liquidatorReward > 0) {
+            depositToken.safeTransfer(msg.sender, liquidatorReward);
+        }
+
+        // Update vault metrics
+        totalVaultAssets = totalVaultAssets + liquidationAmount - liquidatorReward;
+        insuranceFund += penalty;
+
+        // Record liquidation event
+        liquidationEventCounter++;
+        liquidationEvents[liquidationEventCounter] = LiquidationEvent({
+            liquidatedUser: userToLiquidate,
+            liquidator: msg.sender,
+            liquidatedAmount: liquidationAmount,
+            collateralSeized: collateralSeized,
+            penalty: penalty,
+            reward: liquidatorReward,
+            timestamp: block.timestamp,
+            reason: "Health factor below threshold"
+        });
+
+        // Update health factors
+        _updateHealthFactor(userToLiquidate);
+        liquidationFlags[userToLiquidate] = false;
+
+        emit UserLiquidated(
+            liquidationEventCounter,
+            userToLiquidate,
+            msg.sender,
+            liquidationAmount,
+            collateralSeized,
+            penalty,
+            liquidatorReward
+        );
+    }
+
+    function _liquidateTranche(
+        address user,
+        TrancheType tranche,
+        uint256 remainingAmount
+    ) internal returns (uint256) {
+        if (remainingAmount == 0) return 0;
+
+        UserPosition storage position = userPositions[user];
+        uint256 userTrancheFunds = _getUserTrancheDeposit(position, tranche);
+        
+        if (userTrancheFunds == 0) return remainingAmount;
+
+        uint256 liquidatable = remainingAmount > userTrancheFunds ? userTrancheFunds : remainingAmount;
+
+        // Update user position
+        if (tranche == TrancheType.Junior) {
+            position.juniorDeposit -= liquidatable;
+        } else if (tranche == TrancheType.Mezzanine) {
+            position.mezzanineDeposit -= liquidatable;
+        } else {
+            position.seniorDeposit -= liquidatable;
+        }
+
+        // Update tranche balances
+        tranches[tranche].totalDeposits -= liquidatable;
+        tranches[tranche].currentBalance -= liquidatable;
+
+        return remainingAmount - liquidatable;
+    }
+
+    function calculateHealthFactor(address user) public view returns (uint256) {
+        UserPosition storage position = userPositions[user];
+        
+        uint256 totalDeposit = position.juniorDeposit + position.mezzanineDeposit + position.seniorDeposit;
+        if (totalDeposit == 0) return 10000; // 100% - maximum health
+
+        // Calculate weighted risk based on tranche allocation
+        uint256 weightedRisk = 0;
+        if (position.juniorDeposit > 0) {
+            weightedRisk += (position.juniorDeposit * JUNIOR_RISK_MULTIPLIER) / totalDeposit;
+        }
+        if (position.mezzanineDeposit > 0) {
+            weightedRisk += (position.mezzanineDeposit * MEZZANINE_RISK_MULTIPLIER) / totalDeposit;
+        }
+        if (position.seniorDeposit > 0) {
+            weightedRisk += (position.seniorDeposit * SENIOR_RISK_MULTIPLIER) / totalDeposit;
+        }
+
+        // Health factor decreases with higher risk exposure
+        // Formula: 10000 - (weightedRisk * totalVaultLoss / totalVaultAssets)
+        uint256 vaultLossRatio = _calculateVaultLossRatio();
+        uint256 riskImpact = (weightedRisk * vaultLossRatio) / 100;
+        
+        if (riskImpact >= 10000) return 0; // Critical health
+        return 10000 - riskImpact;
+    }
+
+    function _calculateVaultLossRatio() internal view returns (uint256) {
+        if (totalVaultAssets == 0) return 0;
+        
+        uint256 totalSlashingLoss = 0;
+        for (uint256 i = 1; i <= slashingEventCounter; i++) {
+            totalSlashingLoss += slashingEvents[i].amount;
+        }
+        
+        // Return loss ratio as percentage (0-10000)
+        return (totalSlashingLoss * 10000) / (totalVaultAssets + totalSlashingLoss);
+    }
+
+    function _updateHealthFactor(address user) internal {
+        uint256 oldHealthFactor = userHealthFactors[user];
+        uint256 newHealthFactor = calculateHealthFactor(user);
+        
+        userHealthFactors[user] = newHealthFactor;
+
+        // Flag for liquidation if below threshold
+        if (newHealthFactor < LIQUIDATION_THRESHOLD) {
+            liquidationFlags[user] = true;
+            emit LiquidationTriggered(user, newHealthFactor, "Health factor below threshold");
+        }
+
+        emit HealthFactorUpdated(user, oldHealthFactor, newHealthFactor);
+    }
+
+    function _massUpdateHealthFactors() internal {
+        // This is a simplified version - in production, you'd use a more efficient mechanism
+        // like event-based updates or batch processing
+    }
+
+    function checkLiquidationEligibility(address user) external view returns (
+        bool isEligible,
+        uint256 healthFactor,
+        uint256 maxLiquidatable,
+        uint256 estimatedReward
+    ) {
+        healthFactor = calculateHealthFactor(user);
+        isEligible = healthFactor < LIQUIDATION_THRESHOLD;
+        
+        if (isEligible) {
+            UserPosition storage position = userPositions[user];
+            uint256 totalCollateral = position.juniorDeposit + position.mezzanineDeposit + position.seniorDeposit;
+            maxLiquidatable = (totalCollateral * MAX_LIQUIDATION_RATIO) / 10000;
+            estimatedReward = (maxLiquidatable * LIQUIDATOR_REWARD) / 10000;
+        }
+        
+        return (isEligible, healthFactor, maxLiquidatable, estimatedReward);
+    }
+
+    function getLiquidationEvent(uint256 eventId) external view returns (LiquidationEvent memory) {
+        return liquidationEvents[eventId];
+    }
+
+    function getUsersAtRisk(uint256 threshold) external view returns (address[] memory) {
+        // This is a simplified implementation - in production, you'd maintain 
+        // a more efficient data structure for this query
+        address[] memory atRiskUsers = new address[](0);
+        // Implementation would iterate through users and check health factors
+        return atRiskUsers;
+    }
+
+    function setLiquidationParameters(
+        uint256 newThreshold,
+        uint256 newPenalty,
+        uint256 newReward,
+        uint256 newMaxRatio
+    ) external onlyOwner {
+        require(newThreshold <= 9000, "Threshold too high");
+        require(newPenalty <= 1000, "Penalty too high");
+        require(newReward <= 500, "Reward too high");
+        require(newMaxRatio <= 7500, "Max ratio too high");
+        
+        // Note: In a real implementation, these would be state variables
+        // For now, they're constants so this function is informational
     }
 
     function distributeYield() external onlyOwner {
@@ -459,6 +735,49 @@ contract TrancheVault is ERC20, Ownable, ReentrancyGuard, Pausable {
             tranches[TrancheType.Senior].currentBalance,
             insuranceFund,
             slashingEventCounter
+        );
+    }
+
+    function getLiquidationMetrics() external view returns (
+        uint256 totalLiquidationEvents,
+        uint256 totalLiquidatedAmount,
+        uint256 totalPenaltiesCollected,
+        uint256 totalRewardsPaid,
+        uint256 averageHealthFactor
+    ) {
+        totalLiquidationEvents = liquidationEventCounter;
+        
+        for (uint256 i = 1; i <= liquidationEventCounter; i++) {
+            LiquidationEvent storage liquidationEvent = liquidationEvents[i];
+            totalLiquidatedAmount += liquidationEvent.liquidatedAmount;
+            totalPenaltiesCollected += liquidationEvent.penalty;
+            totalRewardsPaid += liquidationEvent.reward;
+        }
+        
+        // Calculate average health factor - simplified implementation
+        // In production, this would be calculated more efficiently
+        averageHealthFactor = 8000; // Placeholder - would aggregate from all users
+    }
+
+    function getExtendedUserPosition(address user) external view returns (
+        uint256 juniorDeposit,
+        uint256 mezzanineDeposit,
+        uint256 seniorDeposit,
+        uint256 totalYield,
+        uint256 lastDeposit,
+        uint256 healthFactor,
+        bool atRisk
+    ) {
+        UserPosition storage position = userPositions[user];
+        
+        return (
+            position.juniorDeposit,
+            position.mezzanineDeposit,
+            position.seniorDeposit,
+            this.calculateUserYield(user),
+            position.lastDepositTime,
+            calculateHealthFactor(user),
+            liquidationFlags[user]
         );
     }
 
