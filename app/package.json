@@ -33,7 +33,7 @@
 		"eslint-plugin-svelte": "^3.0.0",
 		"globals": "^16.0.0",
 		"jsdom": "^26.1.0",
-		"playwright": "^1.53.0",
+		"playwright": "^1.55.0",
 		"postcss": "^8.5.6",
 		"prettier": "^3.4.2",
 		"prettier-plugin-svelte": "^3.3.3",
@@ -49,6 +49,7 @@
 		"vitest-browser-svelte": "^0.1.0"
 	},
 	"dependencies": {
+		"@playwright/test": "^1.55.0",
 		"@rainbow-me/rainbowkit": "^2.2.8",
 		"@wagmi/core": "^2.20.3",
 		"daisyui": "^5.0.54",
