@@ -1,11 +1,11 @@
 <script lang="ts">
   import { createEventDispatcher } from 'svelte';
-  import { walletStore } from '$lib/stores/wallet';
-  import { ERC20Service } from '$lib/services/erc20';
-  import { getTokenInfo, isNativeToken } from '$lib/config/tokens';
-  import { successToast, errorToast } from '$lib/stores/toast';
+  import { walletStore } from '@stores/wallet';
+  import { ERC20Service } from '@services/erc20';
+  import { getTokenInfo, isNativeToken } from '@config/tokens';
+  import { successToast, errorToast } from '@stores/toast';
   import type { Address } from 'viem';
-  import type { ERC20ApprovalStatus } from '$lib/services/erc20';
+  import type { ERC20ApprovalStatus } from '@services/erc20';
 
   export let chainId: number;
   export let tokenAddress: Address;

@@ -1,6 +1,6 @@
 import { parseEther, formatEther, parseEventLogs, type Address } from 'viem';
 import { getPublicClient, getWalletClient, getContractAddress, PaymentCoreABI } from '../contracts';
-import type { Payment, PaymentStatus } from '../../../../packages/types/contracts';
+import type { Payment, PaymentStatus } from '@types/contracts';
 
 export class PaymentService {
   constructor(private chainId: number) {}

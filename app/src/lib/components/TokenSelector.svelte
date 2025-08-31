@@ -1,9 +1,10 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { walletStore } from '$lib/stores/wallet';
-  import { getSupportedTokens, getTokenLogoUrl, isNativeToken } from '$lib/config/tokens';
-  import { ERC20Service } from '$lib/services/erc20';
-  import type { TokenInfo } from '$lib/config/tokens';\n  import type { ERC20TokenBalance } from '$lib/services/erc20';
+  import { walletStore } from '@stores/wallet';
+  import { getSupportedTokens, getTokenLogoUrl, isNativeToken } from '@config/tokens';
+  import { ERC20Service } from '@services/erc20';
+  import type { TokenInfo } from '@config/tokens';
+  import type { ERC20TokenBalance } from '@services/erc20';
   import type { Address } from 'viem';
 
   export let selectedToken: string = '0x0000000000000000000000000000000000000000';

@@ -1,11 +1,11 @@
 <script lang="ts">
   import { page } from '$app/stores';
   import { goto } from '$app/navigation';
-  import { walletStore } from '$lib/stores/wallet';
-  import { chainStore, getChain } from '$lib/stores/chain';
-  import { PaymentService } from '$lib/services/payment';
+  import { walletStore } from '@stores/wallet';
+  import { chainStore, getChain } from '@stores/chain';
+  import { PaymentService } from '@services/payment';
   import { onMount } from 'svelte';
-  import type { Payment } from '../../../../packages/types/contracts';
+  import type { Payment } from '@types/contracts';
   import type { Address } from 'viem';
   
   $: paymentId = $page.params.id;

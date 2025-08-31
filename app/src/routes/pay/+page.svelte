@@ -1,15 +1,15 @@
 <script lang="ts">
-  import { walletStore } from '$lib/stores/wallet';
-  import { chainStore, SUPPORTED_CHAINS, setChain } from '$lib/stores/chain';
+  import { walletStore } from '@stores/wallet';
+  import { chainStore, SUPPORTED_CHAINS, setChain } from '@stores/chain';
   import { goto } from '$app/navigation';
-  import { PaymentService } from '$lib/services/payment';
-  import { ensService } from '$lib/services/ens';
-  import { ERC20Service } from '$lib/services/erc20';
-  import { isNativeToken, getSupportedTokens } from '$lib/config/tokens';
-  import PriceDisplay from '$lib/components/PriceDisplay.svelte';
-  import TokenSelector from '$lib/components/TokenSelector.svelte';
-  import ApprovalFlow from '$lib/components/ApprovalFlow.svelte';
-  import { successToast, errorToast, warningToast } from '$lib/stores/toast';
+  import { PaymentService } from '@services/payment';
+  import { ensService } from '@services/ens';
+  import { ERC20Service } from '@services/erc20';
+  import { isNativeToken, getSupportedTokens } from '@config/tokens';
+  import PriceDisplay from '@components/PriceDisplay.svelte';
+  import TokenSelector from '@components/TokenSelector.svelte';
+  import ApprovalFlow from '@components/ApprovalFlow.svelte';
+  import { successToast, errorToast, warningToast } from '@stores/toast';
   import type { Address } from 'viem';
   
   $: wallet = $walletStore;

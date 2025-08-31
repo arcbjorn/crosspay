@@ -1,10 +1,10 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { walletStore } from '$lib/stores/wallet';
-  import { ensService } from '$lib/services/ens';
-  import { successToast, errorToast } from '$lib/stores/toast';
+  import { walletStore } from '@stores/wallet';
+  import { ensService } from '@services/ens';
+  import { successToast, errorToast } from '@stores/toast';
   import type { Address } from 'viem';
-  import type { ENSResolutionResponse } from '$lib/services/ens';
+  import type { ENSResolutionResponse } from '@services/ens';
 
   $: wallet = $walletStore;
 

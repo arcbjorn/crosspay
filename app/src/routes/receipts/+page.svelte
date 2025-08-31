@@ -1,7 +1,7 @@
 <script lang="ts">
-  import { walletStore } from '$lib/stores/wallet';
-  import { chainStore, getChain } from '$lib/stores/chain';
-  import { PaymentService } from '$lib/services/payment';
+  import { walletStore } from '@stores/wallet';
+  import { chainStore, getChain } from '@stores/chain';
+  import { PaymentService } from '@services/payment';
   import { onMount } from 'svelte';
   import type { Address } from 'viem';
   
