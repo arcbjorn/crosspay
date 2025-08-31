@@ -1,0 +1,48 @@
+{
+  "network": {
+    "name": "Citrea Testnet",
+    "chainId": 5115,
+    "rpcUrl": "https://rpc.testnet.citrea.xyz",
+    "explorerUrl": "https://explorer.testnet.citrea.xyz",
+    "currency": {
+      "name": "cBTC",
+      "symbol": "cBTC",
+      "decimals": 8
+    }
+  },
+  "tokens": {
+    "cBTC": {
+      "name": "Citrea Bitcoin",
+      "symbol": "cBTC",
+      "decimals": 8,
+      "address": "0x0000000000000000000000000000000000000000"
+    },
+    "USDC": {
+      "name": "USD Coin",
+      "symbol": "USDC", 
+      "decimals": 6,
+      "address": "0xa0b86a33e6ba42e44e6eab27ac2da6e3fb0d0e41"
+    }
+  },
+  "contracts": {
+    "PaymentCore": {
+      "address": "",
+      "deployBlock": 0
+    },
+    "FlareOracle": {
+      "address": "",
+      "deployBlock": 0
+    }
+  },
+  "features": {
+    "nativeToken": "cBTC",
+    "oracleEnabled": true,
+    "receiptStorage": true,
+    "ensSupported": false
+  },
+  "deployment": {
+    "gasPrice": "1000000000",
+    "gasLimit": "8000000",
+    "verifyContracts": true
+  }
+}
