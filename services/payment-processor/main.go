@@ -2,87 +2,66 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"log"
 	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
-
-	"github.com/gin-gonic/gin"
 )
 
 func main() {
-	r := gin.Default()
-	
-	// CORS middleware
-	r.Use(corsMiddleware())
+	mux := http.NewServeMux()
 	
 	// Health check endpoint
-	r.GET("/health", func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{
+	mux.HandleFunc("/health", corsHandler(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
 			"status":    "healthy",
 			"service":   "payment-processor",
 			"timestamp": time.Now().Unix(),
 		})
-	})
+	}))
 
 	// Payment API endpoints
-	paymentGroup := r.Group("/api/payments")
-	{
-		paymentGroup.POST("/create", handleCreatePayment)
-		paymentGroup.POST("/complete/:id", handleCompletePayment)
-		paymentGroup.POST("/refund/:id", handleRefundPayment)
-		paymentGroup.GET("/:id", handleGetPayment)
-		paymentGroup.GET("/user/:address", handleGetUserPayments)
-	}
+	mux.HandleFunc("/api/payments/create", corsHandler(handleCreatePayment))
+	mux.HandleFunc("/api/payments/complete/", corsHandler(handleCompletePayment))
+	mux.HandleFunc("/api/payments/refund/", corsHandler(handleRefundPayment))
+	mux.HandleFunc("/api/payments/", corsHandler(handleGetPayment))
+	mux.HandleFunc("/api/payments/user/", corsHandler(handleGetUserPayments))
 
 	// Receipt API endpoints
-	receiptGroup := r.Group("/api/receipts")
-	{
-		receiptGroup.POST("/generate/:paymentId", handleGenerateReceipt)
-		receiptGroup.GET("/download/:id", handleDownloadReceipt)
-		receiptGroup.GET("/verify/:cid", handleVerifyReceipt)
-		receiptGroup.GET("/payment/:paymentId", handleGetReceiptsByPayment)
-	}
+	mux.HandleFunc("/api/receipts/generate/", corsHandler(handleGenerateReceipt))
+	mux.HandleFunc("/api/receipts/download/", corsHandler(handleDownloadReceipt))
+	mux.HandleFunc("/api/receipts/verify/", corsHandler(handleVerifyReceipt))
+	mux.HandleFunc("/api/receipts/payment/", corsHandler(handleGetReceiptsByPayment))
 
 	// Oracle integration endpoints
-	oracleGroup := r.Group("/api/oracle")
-	{
-		oracleGroup.GET("/price/:symbol", handleGetPrice)
-		oracleGroup.POST("/random/request", handleRequestRandom)
-		oracleGroup.GET("/random/status/:requestId", handleRandomStatus)
-		oracleGroup.POST("/proof/submit", handleSubmitProof)
-		oracleGroup.GET("/proof/verify/:proofId", handleVerifyProof)
-	}
+	mux.HandleFunc("/api/oracle/price/", corsHandler(handleGetPrice))
+	mux.HandleFunc("/api/oracle/random/request", corsHandler(handleRequestRandom))
+	mux.HandleFunc("/api/oracle/random/status/", corsHandler(handleRandomStatus))
+	mux.HandleFunc("/api/oracle/proof/submit", corsHandler(handleSubmitProof))
+	mux.HandleFunc("/api/oracle/proof/verify/", corsHandler(handleVerifyProof))
 
 	// ENS resolution endpoints
-	ensGroup := r.Group("/api/ens")
-	{
-		ensGroup.GET("/resolve/:name", handleResolveName)
-		ensGroup.GET("/reverse/:address", handleReverseResolve)
-		ensGroup.POST("/resolve/batch", handleBatchResolve)
-	}
+	mux.HandleFunc("/api/ens/resolve/", corsHandler(handleResolveName))
+	mux.HandleFunc("/api/ens/reverse/", corsHandler(handleReverseResolve))
+	mux.HandleFunc("/api/ens/resolve/batch", corsHandler(handleBatchResolve))
 
 	// Storage endpoints
-	storageGroup := r.Group("/api/storage")
-	{
-		storageGroup.POST("/upload", handleUploadFile)
-		storageGroup.GET("/retrieve/:cid", handleRetrieveFile)
-		storageGroup.GET("/cost/:size", handleEstimateCost)
-	}
+	mux.HandleFunc("/api/storage/upload", corsHandler(handleUploadFile))
+	mux.HandleFunc("/api/storage/retrieve/", corsHandler(handleRetrieveFile))
+	mux.HandleFunc("/api/storage/cost/", corsHandler(handleEstimateCost))
 
 	// Analytics endpoints
-	analyticsGroup := r.Group("/api/analytics")
-	{
-		analyticsGroup.GET("/stats", handleGetStats)
-		analyticsGroup.GET("/payments/volume", handleGetPaymentVolume)
-		analyticsGroup.GET("/receipts/stats", handleGetReceiptStats)
-	}
+	mux.HandleFunc("/api/analytics/stats", corsHandler(handleGetStats))
+	mux.HandleFunc("/api/analytics/payments/volume", corsHandler(handleGetPaymentVolume))
+	mux.HandleFunc("/api/analytics/receipts/stats", corsHandler(handleGetReceiptStats))
 
 	srv := &http.Server{
 		Addr:    ":8083",
-		Handler: r,
+		Handler: mux,
 	}
 
 	// Initialize services
@@ -111,19 +90,19 @@ func main() {
 	log.Println("Payment processor stopped")
 }
 
-func corsMiddleware() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		c.Header("Access-Control-Allow-Origin", "*")
-		c.Header("Access-Control-Allow-Credentials", "true")
-		c.Header("Access-Control-Allow-Headers", "Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, accept, origin, Cache-Control, X-Requested-With")
-		c.Header("Access-Control-Allow-Methods", "POST, OPTIONS, GET, PUT, DELETE")
+func corsHandler(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Credentials", "true")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, accept, origin, Cache-Control, X-Requested-With")
+		w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS, GET, PUT, DELETE")
 
-		if c.Request.Method == "OPTIONS" {
-			c.AbortWithStatus(204)
+		if r.Method == "OPTIONS" {
+			w.WriteHeader(204)
 			return
 		}
 
-		c.Next()
+		next(w, r)
 	}
 }
 
