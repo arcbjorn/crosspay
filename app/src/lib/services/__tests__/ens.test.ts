@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { ENSService } from '../ens';
+import { ENSService } from '@services/ens';
 
 // Mock fetch
 global.fetch = vi.fn();
@@ -12,12 +12,10 @@ describe('ENSService', () => {
     ensService = new ENSService('http://localhost:3002');
   });
 
-  describe('resolveENSName', () => {
+  describe('resolveName', () => {
     it('should resolve ENS name to address successfully', async () => {
       const mockResponse = {
-        name: 'alice.eth',
-        address: '0x1234567890123456789012345678901234567890',
-        resolved: true,
+        address: '0x1234567890123456789012345678901234567890'
       };
 
       vi.mocked(fetch).mockResolvedValueOnce({
@@ -25,17 +23,15 @@ describe('ENSService', () => {
         json: () => Promise.resolve(mockResponse),
       } as Response);
 
-      const result = await ensService.resolveENSName('alice.eth');
+      const result = await ensService.resolveName('alice.eth');
 
       expect(fetch).toHaveBeenCalledWith('http://localhost:3002/resolve/alice.eth');
-      expect(result).toEqual(mockResponse);
+      expect(result).toBe('0x1234567890123456789012345678901234567890');
     });
 
     it('should handle unresolved ENS names', async () => {
       const mockResponse = {
-        name: 'nonexistent.eth',
-        address: null,
-        resolved: false,
+        error: 'ENS name not found'
       };
 
       vi.mocked(fetch).mockResolvedValueOnce({
@@ -43,16 +39,16 @@ describe('ENSService', () => {
         json: () => Promise.resolve(mockResponse),
       } as Response);
 
-      const result = await ensService.resolveENSName('nonexistent.eth');
+      const result = await ensService.resolveName('nonexistent.eth');
 
-      expect(result).toEqual(mockResponse);
-      expect(result.resolved).toBe(false);
+      expect(result).toBeNull();
     });
 
     it('should handle network errors', async () => {
       vi.mocked(fetch).mockRejectedValueOnce(new Error('Network error'));
 
-      await expect(ensService.resolveENSName('alice.eth')).rejects.toThrow('Network error');
+      const result = await ensService.resolveName('alice.eth');
+      expect(result).toBeNull();
     });
 
     it('should handle API errors', async () => {
@@ -62,16 +58,16 @@ describe('ENSService', () => {
         statusText: 'Internal Server Error',
       } as Response);
 
-      await expect(ensService.resolveENSName('alice.eth')).rejects.toThrow('Failed to resolve ENS name: 500 Internal Server Error');
+      const result = await ensService.resolveName('alice.eth');
+      expect(result).toBeNull();
     });
   });
 
-  describe('reverseResolveAddress', () => {
+  describe('lookupAddress', () => {
     it('should reverse resolve address to ENS name successfully', async () => {
       const mockResponse = {
-        address: '0x1234567890123456789012345678901234567890',
         name: 'alice.eth',
-        resolved: true,
+        address: '0x1234567890123456789012345678901234567890'
       };
 
       vi.mocked(fetch).mockResolvedValueOnce({
@@ -79,17 +75,15 @@ describe('ENSService', () => {
         json: () => Promise.resolve(mockResponse),
       } as Response);
 
-      const result = await ensService.reverseResolveAddress('0x1234567890123456789012345678901234567890');
+      const result = await ensService.lookupAddress('0x1234567890123456789012345678901234567890');
 
       expect(fetch).toHaveBeenCalledWith('http://localhost:3002/reverse/0x1234567890123456789012345678901234567890');
-      expect(result).toEqual(mockResponse);
+      expect(result).toBe('alice.eth');
     });
 
     it('should handle addresses without ENS names', async () => {
       const mockResponse = {
-        address: '0x9999999999999999999999999999999999999999',
-        name: null,
-        resolved: false,
+        error: 'No ENS name found for this address'
       };
 
       vi.mocked(fetch).mockResolvedValueOnce({
@@ -97,10 +91,9 @@ describe('ENSService', () => {
         json: () => Promise.resolve(mockResponse),
       } as Response);
 
-      const result = await ensService.reverseResolveAddress('0x9999999999999999999999999999999999999999');
+      const result = await ensService.lookupAddress('0x9999999999999999999999999999999999999999');
 
-      expect(result).toEqual(mockResponse);
-      expect(result.resolved).toBe(false);
+      expect(result).toBeNull();
     });
   });
 
