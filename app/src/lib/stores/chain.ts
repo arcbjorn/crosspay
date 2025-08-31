@@ -15,6 +15,13 @@ export interface ChainConfig {
   }[];
   testnet: boolean;
   faucets?: string[];
+  blockTime: number; // Average block time in seconds
+  gasPrice: {
+    average: string; // In gwei
+    fast: string;
+    standard: string;
+  };
+  confirmations: number; // Required confirmations
 }
 
 export const SUPPORTED_CHAINS: Record<number, ChainConfig> = {
@@ -35,6 +42,13 @@ export const SUPPORTED_CHAINS: Record<number, ChainConfig> = {
     ],
     testnet: true,
     faucets: ['https://sepolia-faucet.lisk.com'],
+    blockTime: 2, // 2 second blocks
+    gasPrice: {
+      average: '0.1',
+      fast: '0.2', 
+      standard: '0.1'
+    },
+    confirmations: 6,
   },
   84532: {
     id: 84532,
@@ -53,6 +67,13 @@ export const SUPPORTED_CHAINS: Record<number, ChainConfig> = {
     ],
     testnet: true,
     faucets: ['https://www.coinbase.com/faucets/base-ethereum-sepolia-faucet'],
+    blockTime: 2, // 2 second blocks
+    gasPrice: {
+      average: '0.1',
+      fast: '0.15',
+      standard: '0.1'
+    },
+    confirmations: 6,
   },
 };
 
