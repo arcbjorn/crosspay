@@ -10,7 +10,9 @@ export class PaymentService {
     token: Address,
     amount: string,
     metadataURI: string,
-    senderAddress: Address
+    senderAddress: Address,
+    senderENS?: string,
+    recipientENS?: string
   ): Promise<{ hash: string; paymentId: bigint }> {
     const walletClient = getWalletClient(this.chainId);
     const publicClient = getPublicClient(this.chainId);
@@ -32,7 +34,7 @@ export class PaymentService {
         address: contractAddress,
         abi: PaymentCoreABI,
         functionName: 'createPayment',
-        args: [recipient, token, parsedAmount, metadataURI],
+        args: [recipient, token, parsedAmount, metadataURI, senderENS || '', recipientENS || ''],
         account: senderAddress,
         value: totalValue,
       });
@@ -75,7 +77,7 @@ export class PaymentService {
       })) as any;
 
       // Map the contract result (tuple) to our Payment interface
-      // Struct order: id, sender, recipient, token, amount, fee, status, createdAt, completedAt, metadataURI
+      // Struct order: id, sender, recipient, token, amount, fee, status, createdAt, completedAt, metadataURI, receiptCID, senderENS, recipientENS, oraclePrice, randomSeed
       const arr = Array.isArray(result) ? (result as any[]) : (Object.values(result) as any[]);
       return {
         id: paymentId,
@@ -88,6 +90,11 @@ export class PaymentService {
         createdAt: arr[7] as bigint,
         completedAt: arr[8] as bigint,
         metadataURI: arr[9] as string,
+        receiptCID: arr[10] as string,
+        senderENS: arr[11] as string,
+        recipientENS: arr[12] as string,
+        oraclePrice: BigInt(arr[13] as string || '0'),
+        randomSeed: arr[14] as string,
       };
     } catch (error) {
       console.error('Failed to get payment:', error);
