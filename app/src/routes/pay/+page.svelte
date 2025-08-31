@@ -4,6 +4,7 @@
   import { goto } from '$app/navigation';
   import { PaymentService } from '$lib/services/payment';
   import { ensService } from '$lib/services/ens';
+  import PriceDisplay from '$lib/components/PriceDisplay.svelte';
   import { successToast, errorToast, warningToast } from '$lib/stores/toast';
   import type { Address } from 'viem';
   
@@ -332,6 +333,17 @@
             </label>
           </div>
           
+          <!-- Current Exchange Rates -->
+          <div class="card bg-base-200/50 border-none">
+            <div class="card-body p-4">
+              <h3 class="text-sm font-medium mb-2">Current Exchange Rates</h3>
+              <div class="grid grid-cols-2 gap-2">
+                <PriceDisplay symbol="ETH/USD" compact={true} showChange={false} />
+                <PriceDisplay symbol="BTC/USD" compact={true} showChange={false} />
+              </div>
+            </div>
+          </div>
+
           <!-- Fee Summary -->
           {#if amount}
             <div class="alert">
