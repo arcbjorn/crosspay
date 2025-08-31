@@ -408,14 +408,14 @@ contract TrancheVault is ERC20, Ownable, ReentrancyGuard, Pausable {
     }
 
     function _calculateTrancheYield(
-        uint256 deposit,
+        uint256 depositAmount,
         TrancheType tranche,
         uint256 timeElapsed
     ) internal view returns (uint256) {
-        if (deposit == 0) return 0;
+        if (depositAmount == 0) return 0;
         
         TrancheInfo storage info = tranches[tranche];
-        return (deposit * info.yieldRate * timeElapsed) / (365 days * 10000);
+        return (depositAmount * info.yieldRate * timeElapsed) / (365 days * 10000);
     }
 
     function getTrancheAPY(TrancheType tranche) external view returns (uint256) {
@@ -439,7 +439,7 @@ contract TrancheVault is ERC20, Ownable, ReentrancyGuard, Pausable {
             position.juniorDeposit,
             position.mezzanineDeposit,
             position.seniorDeposit,
-            calculateUserYield(user),
+            this.calculateUserYield(user),
             position.lastDepositTime
         );
     }
