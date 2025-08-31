@@ -1,0 +1,6 @@
+packages:
+  - 'contracts'
+  - 'app'
+  - 'packages/*'
+  - 'mini'
+  - 'services/*'
