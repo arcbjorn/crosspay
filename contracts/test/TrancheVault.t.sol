@@ -190,7 +190,7 @@ contract TrancheVaultTest is Test {
             uint256 juniorTVL,
             uint256 mezzanineTVL,
             uint256 seniorTVL,
-            uint256 insuranceBalance,
+            , // insuranceBalance (unused)
             uint256 totalSlashingEvents
         ) = vault.getVaultMetrics();
         

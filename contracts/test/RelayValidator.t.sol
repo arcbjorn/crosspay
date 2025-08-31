@@ -74,8 +74,8 @@ contract RelayValidatorTest is Test {
             uint256 requiredSigs,
             uint256 receivedSigs,
             RelayValidator.ValidationStatus status,
-            uint256 createdAt,
-            uint256 deadline,
+            , // createdAt (unused)
+            , // deadline (unused)
             bool isHighValue
         ) = relayValidator.getValidationRequest(requestId);
         

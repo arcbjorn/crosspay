@@ -175,7 +175,7 @@ contract HyperlaneISMTest is Test {
         // Process message with ISM verification
         hyperlaneISM.processWithISM(metadata, message);
         
-        bytes32 messageId = keccak256(message);
+        // bytes32 messageId = keccak256(message);
         // Would check if message was processed in a real implementation
     }
     
@@ -283,7 +283,7 @@ contract HyperlaneISMTest is Test {
     }
     
     function testMessageAlreadyProcessed() public {
-        bytes32 messageId = keccak256("duplicate_message");
+        // bytes32 messageId = keccak256("duplicate_message");
         
         uint32 origin = 1;
         bytes32 sender = bytes32(uint256(uint160(address(hyperlaneISM))));

@@ -118,7 +118,7 @@ contract TrancheVaultLiquidationTest is Test {
             assertGt(maxLiquidatable, 0);
             
             // Get Alice's position before liquidation
-            (uint256 juniorBefore, uint256 mezzanineBefore, uint256 seniorBefore, , , , ) = 
+            (uint256 juniorBefore, , , , , , ) = 
                 vault.getExtendedUserPosition(alice);
             
             // Execute liquidation
@@ -129,7 +129,7 @@ contract TrancheVaultLiquidationTest is Test {
             vm.stopPrank();
             
             // Verify liquidation occurred
-            (uint256 juniorAfter, uint256 mezzanineAfter, uint256 seniorAfter, , , , ) = 
+            (uint256 juniorAfter, , , , , , ) = 
                 vault.getExtendedUserPosition(alice);
             
             // Alice's position should be reduced
@@ -171,7 +171,7 @@ contract TrancheVaultLiquidationTest is Test {
         // Check if liquidation is triggered
         uint256 healthFactor = vault.calculateHealthFactor(alice);
         if (healthFactor < vault.LIQUIDATION_THRESHOLD()) {
-            (uint256 juniorBefore, uint256 mezzanineBefore, uint256 seniorBefore, , , , ) = 
+            (uint256 juniorBefore, , , , , , ) = 
                 vault.getExtendedUserPosition(alice);
             
             // Execute partial liquidation
@@ -179,7 +179,7 @@ contract TrancheVaultLiquidationTest is Test {
             vault.liquidateUser(alice, 800 * 10**18);
             vm.stopPrank();
             
-            (uint256 juniorAfter, uint256 mezzanineAfter, uint256 seniorAfter, , , , ) = 
+            (uint256 juniorAfter, , , , , , ) = 
                 vault.getExtendedUserPosition(alice);
             
             // Verify waterfall: Junior should be liquidated first
@@ -206,7 +206,7 @@ contract TrancheVaultLiquidationTest is Test {
         if (healthFactor < vault.LIQUIDATION_THRESHOLD()) {
             uint256 liquidatorBalanceBefore = token.balanceOf(liquidator);
             
-            (bool isEligible, , uint256 maxLiquidatable, uint256 estimatedReward) = 
+            (bool isEligible, , uint256 maxLiquidatable, ) = 
                 vault.checkLiquidationEligibility(alice);
             
             if (isEligible && maxLiquidatable > 0) {
@@ -321,7 +321,7 @@ contract TrancheVaultLiquidationTest is Test {
         vm.stopPrank();
         
         // Check extended user position
-        (uint256 junior, uint256 mezzanine, uint256 senior, uint256 yield, uint256 lastDeposit, uint256 healthFactor, bool atRisk) = 
+        (uint256 junior, uint256 mezzanine, uint256 senior, , uint256 lastDeposit, uint256 healthFactor, bool atRisk) = 
             vault.getExtendedUserPosition(alice);
         
         assertEq(junior, 1000 * 10**18);
