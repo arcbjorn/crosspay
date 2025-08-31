@@ -145,6 +145,53 @@ contract TrancheVault is ERC20, Ownable, ReentrancyGuard, Pausable {
         address indexed collector
     );
 
+    // MVP: Allow batch deposits on behalf of users without relying on tx.origin
+    function depositFor(
+        address user,
+        TrancheType tranche,
+        uint256 amount
+    ) external nonReentrant whenNotPaused {
+        if (amount < MIN_DEPOSIT) {
+            revert InsufficientDeposit();
+        }
+        if (!tranches[tranche].isActive) {
+            revert TrancheNotActive();
+        }
+
+        _updateYield(tranche);
+
+        // Pull funds from the user (requires user approval to the vault)
+        depositToken.safeTransferFrom(user, address(this), amount);
+
+        UserPosition storage position = userPositions[user];
+        
+        if (tranche == TrancheType.Junior) {
+            position.juniorDeposit += amount;
+        } else if (tranche == TrancheType.Mezzanine) {
+            position.mezzanineDeposit += amount;
+        } else {
+            position.seniorDeposit += amount;
+        }
+
+        position.lastDepositTime = block.timestamp;
+        position.lastYieldCalculation = block.timestamp;
+
+        // Track unique depositor for health updates
+        if (!isDepositor[user]) {
+            isDepositor[user] = true;
+            depositors.push(user);
+        }
+
+        tranches[tranche].totalDeposits += amount;
+        tranches[tranche].currentBalance += amount;
+        totalVaultAssets += amount;
+
+        uint256 shares = _calculateShares(amount, tranche);
+        _mint(user, shares);
+
+        emit Deposited(user, tranche, amount, shares);
+    }
+
     event UserLiquidated(
         uint256 indexed eventId,
         address indexed liquidatedUser,
