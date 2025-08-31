@@ -2,14 +2,13 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"log"
 	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
-
-	"github.com/gin-gonic/gin"
 )
 
 func main() {
@@ -18,53 +17,35 @@ func main() {
 	// Initialize SynapseSDK client
 	initStorage()
 
-	r := gin.Default()
+	mux := http.NewServeMux()
 	
-	// CORS middleware
-	r.Use(func(c *gin.Context) {
-		c.Header("Access-Control-Allow-Origin", "*")
-		c.Header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-		c.Header("Access-Control-Allow-Headers", "Origin, Content-Type, Accept, Authorization")
-
-		if c.Request.Method == "OPTIONS" {
-			c.AbortWithStatus(204)
-			return
-		}
-		c.Next()
-	})
-
 	// Health check endpoint
-	r.GET("/health", func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{
+	mux.HandleFunc("/health", corsHandler(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
 			"status": "healthy",
 			"service": "storage-worker",
 			"timestamp": time.Now().Unix(),
 		})
-	})
+	}))
 
 	// Storage endpoints
-	storageGroup := r.Group("/api/storage")
-	{
-		storageGroup.POST("/upload", handleUpload)
-		storageGroup.GET("/retrieve/:cid", handleRetrieve)
-		storageGroup.GET("/cost/:size", handleCostEstimate)
-		storageGroup.GET("/files", handleListFiles)
-		storageGroup.POST("/pin/:cid", handlePinToIPFS)
-		storageGroup.GET("/deal-status/:dealId", handleDealStatus)
-		storageGroup.GET("/network/info", handleNetworkInfo)
-	}
+	mux.HandleFunc("/api/storage/upload", corsHandler(handleUpload))
+	mux.HandleFunc("/api/storage/retrieve/", corsHandler(handleRetrieve))
+	mux.HandleFunc("/api/storage/cost/", corsHandler(handleCostEstimate))
+	mux.HandleFunc("/api/storage/files", corsHandler(handleListFiles))
+	mux.HandleFunc("/api/storage/pin/", corsHandler(handlePinToIPFS))
+	mux.HandleFunc("/api/storage/deal-status/", corsHandler(handleDealStatus))
+	mux.HandleFunc("/api/storage/network/info", corsHandler(handleNetworkInfo))
 
 	// Receipt endpoints
-	receiptGroup := r.Group("/api/receipts")
-	{
-		receiptGroup.POST("/generate", handleGenerateReceipt)
-		receiptGroup.GET("/download/:id", handleDownloadReceipt)
-		receiptGroup.GET("/verify/:cid", handleVerifyReceipt)
-	}
+	mux.HandleFunc("/api/receipts/generate", corsHandler(handleGenerateReceipt))
+	mux.HandleFunc("/api/receipts/download/", corsHandler(handleDownloadReceipt))
+	mux.HandleFunc("/api/receipts/verify/", corsHandler(handleVerifyReceipt))
 
 	srv := &http.Server{
 		Addr:    ":8080",
-		Handler: r,
+		Handler: mux,
 	}
 
 	go func() {
@@ -88,4 +69,19 @@ func main() {
 	}
 	
 	log.Println("Storage worker stopped")
+}
+
+func corsHandler(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Origin, Content-Type, Accept, Authorization")
+
+		if r.Method == "OPTIONS" {
+			w.WriteHeader(204)
+			return
+		}
+
+		next(w, r)
+	}
 }
