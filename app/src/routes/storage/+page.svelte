@@ -1,17 +1,42 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { storageService } from '$lib/services/storage';
+  import type { FileInfo } from '$lib/services/storage';
+  import { successToast, errorToast } from '$lib/stores/toast';
 
-  let uploadedReceipts: any[] = [];
+  let uploadedReceipts: FileInfo[] = [];
   let isLoading = false;
   let dragOver = false;
+  let serviceAvailable = false;
 
-  onMount(() => {
-    // Load stored receipts from local storage for demo
-    const stored = localStorage.getItem('storedReceipts');
-    if (stored) {
-      uploadedReceipts = JSON.parse(stored);
+  onMount(async () => {
+    // Check if storage service is available
+    serviceAvailable = await storageService.isServiceAvailable();
+    
+    if (serviceAvailable) {
+      await loadStoredFiles();
+    } else {
+      console.warn('Storage service not available, using local storage fallback');
+      // Fallback to local storage for demo
+      const stored = localStorage.getItem('storedReceipts');
+      if (stored) {
+        uploadedReceipts = JSON.parse(stored);
+      }
     }
   });
+
+  async function loadStoredFiles() {
+    try {
+      isLoading = true;
+      const files = await storageService.listFiles();
+      uploadedReceipts = files;
+    } catch (error) {
+      console.error('Failed to load stored files:', error);
+      errorToast('Failed to load stored files');
+    } finally {
+      isLoading = false;
+    }
+  }
 
   function handleDragOver(e: DragEvent) {
     e.preventDefault();
@@ -40,26 +65,58 @@
   async function uploadFiles(files: File[]) {
     isLoading = true;
     
-    for (const file of files) {
-      // Mock upload - in real implementation would upload to Filecoin via storage service
-      const mockCID = `Qm${Math.random().toString(36).substring(2, 15)}`;
-      
-      const receipt = {
-        id: Date.now() + Math.random(),
-        name: file.name,
-        size: file.size,
-        type: file.type,
-        cid: mockCID,
-        uploadedAt: new Date().toISOString(),
-        status: 'stored'
-      };
+    try {
+      for (const file of files) {
+        if (serviceAvailable) {
+          // Real upload via SynapseSDK
+          const result = await storageService.uploadFile(file);
+          
+          const fileInfo: FileInfo = {
+            cid: result.cid,
+            size: result.size,
+            dealId: result.dealId || '',
+            storageCost: result.cost,
+            status: result.status || 'stored',
+            metadata: {
+              filename: file.name,
+              contentType: file.type,
+              uploadedAt: result.timestamp,
+            },
+            createdAt: result.timestamp,
+          };
 
-      uploadedReceipts = [receipt, ...uploadedReceipts];
+          uploadedReceipts = [fileInfo, ...uploadedReceipts];
+          successToast(`File uploaded successfully: ${file.name}`);
+          
+        } else {
+          // Fallback mock upload
+          const mockCID = `Qm${Math.random().toString(36).substring(2, 15)}`;
+          
+          const receipt = {
+            id: Date.now() + Math.random(),
+            name: file.name,
+            size: file.size,
+            type: file.type,
+            cid: mockCID,
+            uploadedAt: new Date().toISOString(),
+            status: 'stored'
+          };
+
+          uploadedReceipts = [receipt, ...uploadedReceipts];
+        }
+      }
+
+      if (!serviceAvailable) {
+        // Save to local storage for demo fallback
+        localStorage.setItem('storedReceipts', JSON.stringify(uploadedReceipts));
+      }
+
+    } catch (error) {
+      console.error('Upload failed:', error);
+      errorToast(`Upload failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      isLoading = false;
     }
-
-    // Save to local storage for demo
-    localStorage.setItem('storedReceipts', JSON.stringify(uploadedReceipts));
-    isLoading = false;
   }
 
   function formatFileSize(bytes: number): string {
@@ -71,12 +128,22 @@
   }
 
   async function downloadFromIPFS(cid: string, filename: string) {
-    // Mock download - would connect to IPFS gateway
-    console.log(`Downloading ${filename} from IPFS: ${cid}`);
-    // In real implementation:
-    // const response = await fetch(`https://gateway.ipfs.io/ipfs/${cid}`);
-    // const blob = await response.blob();
-    // ... trigger download
+    try {
+      if (serviceAvailable) {
+        // Real download via storage service
+        await storageService.downloadFile(cid, filename);
+        successToast(`Downloaded: ${filename}`);
+      } else {
+        // Mock download - would connect to IPFS gateway
+        console.log(`Downloading ${filename} from IPFS: ${cid}`);
+        // Open IPFS gateway URL as fallback
+        const gatewayUrl = storageService.getIPFSGatewayUrl(cid);
+        window.open(gatewayUrl, '_blank');
+      }
+    } catch (error) {
+      console.error('Download failed:', error);
+      errorToast(`Download failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
   }
 </script>
 
