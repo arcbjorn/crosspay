@@ -2,13 +2,8 @@
 pragma solidity ^0.8.24;
 
 import "@openzeppelin/contracts/governance/TimelockController.sol";
-import "@openzeppelin/contracts/access/AccessControl.sol";
 
 contract CrossPayTimelock is TimelockController {
-    bytes32 public constant EXECUTOR_ROLE = keccak256("EXECUTOR_ROLE");
-    bytes32 public constant PROPOSER_ROLE = keccak256("PROPOSER_ROLE");
-    bytes32 public constant CANCELLER_ROLE = keccak256("CANCELLER_ROLE");
-
     uint256 public constant MIN_DELAY = 24 hours;
     uint256 public constant EMERGENCY_DELAY = 1 hours;
     
@@ -36,13 +31,12 @@ contract CrossPayTimelock is TimelockController {
         bytes32 predecessor,
         bytes32 salt
     ) public onlyRole(PROPOSER_ROLE) returns (bytes32) {
-        bytes32 operationId = hashOperation(target, value, data, predecessor, salt);
-        
         require(isEmergencyOperation(data), "Not emergency operation");
         
+        bytes32 operationId = hashOperation(target, value, data, predecessor, salt);
         emergencyOperations[operationId] = true;
         
-        _schedule(operationId, EMERGENCY_DELAY);
+        schedule(target, value, data, predecessor, salt, EMERGENCY_DELAY);
         
         emit EmergencyOperationScheduled(operationId, keccak256(data));
         
@@ -62,12 +56,7 @@ contract CrossPayTimelock is TimelockController {
             revert NotEmergencyOperation();
         }
         
-        if (getTimestamp(operationId) > block.timestamp) {
-            revert InsufficientDelay();
-        }
-        
-        _execute(target, value, data);
-        _afterCall(operationId);
+        execute(target, value, data, predecessor, salt);
         
         delete emergencyOperations[operationId];
     }
@@ -79,13 +68,5 @@ contract CrossPayTimelock is TimelockController {
                selector == bytes4(keccak256("emergencyUnpause()")) ||
                selector == bytes4(keccak256("slashValidator(address,string)")) ||
                selector == bytes4(keccak256("emergencyCancel(uint256)"));
-    }
-
-    function _schedule(bytes32 id, uint256 delay) internal {
-        _timestamps[id] = block.timestamp + delay;
-    }
-
-    function _afterCall(bytes32 id) internal {
-        delete _timestamps[id];
     }
 }
