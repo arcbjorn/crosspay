@@ -1,23 +1,27 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { PaymentService } from '../payment';
+import { PaymentService } from '@services/payment';
 import type { Address } from 'viem';
 
 // Mock the contracts module
-vi.mock('../../contracts', () => ({
+const mockSimulateContract = vi.fn();
+const mockWriteContract = vi.fn();
+const mockWaitForTransactionReceipt = vi.fn();
+
+vi.mock('@contracts', () => ({
   getPublicClient: vi.fn(() => ({
-    simulateContract: vi.fn(),
-    waitForTransactionReceipt: vi.fn(),
+    simulateContract: mockSimulateContract,
+    waitForTransactionReceipt: mockWaitForTransactionReceipt,
     readContract: vi.fn(),
   })),
   getWalletClient: vi.fn(() => ({
-    writeContract: vi.fn(),
+    writeContract: mockWriteContract,
   })),
   getContractAddress: vi.fn(() => '0xcontract123'),
   PaymentCoreABI: [],
 }));
 
 // Mock the oracle service
-vi.mock('../oracle', () => ({
+vi.mock('@services/oracle', () => ({
   oracleService: {
     getCurrentPrice: vi.fn(),
   },
@@ -64,12 +68,18 @@ describe('PaymentService', () => {
 
   describe('createPayment', () => {
     it('should create payment with oracle price snapshot', async () => {
-      const { getPublicClient, getWalletClient } = await import('../../contracts');
-      const { oracleService } = await import('../oracle');
-      
-      const mockPublicClient = getPublicClient(4202);
-      const mockWalletClient = getWalletClient(4202);
+      const mockRequest = {
+        address: '0xcontract123' as Address,
+        abi: [],
+        functionName: 'createPayment',
+        args: [mockRecipient, mockToken, BigInt('1000000000000000000'), '', 'alice.eth', 'bob.eth'],
+        account: mockSender,
+        value: BigInt('1001000000000000000')
+      };
 
+      // Setup mocks using the direct mock functions
+      const { oracleService } = await import('@services/oracle');
+      
       // Mock oracle price
       vi.mocked(oracleService.getCurrentPrice).mockResolvedValue({
         symbol: 'ETH/USD',
@@ -80,20 +90,16 @@ describe('PaymentService', () => {
       });
 
       // Mock contract simulation
-      vi.mocked(mockPublicClient.simulateContract).mockResolvedValue({
-        request: { 
-          to: '0xcontract123' as Address, 
-          data: '0x123',
-          functionName: 'createPayment',
-          args: []
-        },
-      } as any);
+      mockSimulateContract.mockResolvedValue({
+        request: mockRequest,
+        result: undefined
+      });
 
       // Mock transaction
-      vi.mocked(mockWalletClient.writeContract).mockResolvedValue('0xtxhash123' as Address);
+      mockWriteContract.mockResolvedValue('0xtxhash123' as Address);
 
       // Mock receipt with logs
-      vi.mocked(mockPublicClient.waitForTransactionReceipt).mockResolvedValue({
+      mockWaitForTransactionReceipt.mockResolvedValue({
         logs: [{
           address: '0xcontract123',
           topics: ['0xevent123'],
@@ -107,6 +113,9 @@ describe('PaymentService', () => {
         args: { paymentId: 123n },
         eventName: 'PaymentCreated',
       } as any]);
+
+      // Mock the private approveTokenIfNeeded method
+      vi.spyOn(paymentService as any, 'approveTokenIfNeeded').mockResolvedValue(undefined);
 
       const result = await paymentService.createPayment(
         mockRecipient,

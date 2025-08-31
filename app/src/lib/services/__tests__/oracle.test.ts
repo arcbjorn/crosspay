@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { OracleService } from '../oracle';
+import { OracleService } from '@services/oracle';
 
 // Mock fetch
 global.fetch = vi.fn();

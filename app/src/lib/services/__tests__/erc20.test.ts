@@ -1,9 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { ERC20Service } from '../erc20';
+import { ERC20Service } from '@services/erc20';
 import type { Address } from 'viem';
 
 // Mock the contracts module
-vi.mock('../../contracts', () => ({
+vi.mock('@contracts', () => ({
   getPublicClient: vi.fn(() => ({
     readContract: vi.fn(),
     estimateContractGas: vi.fn(),
@@ -62,11 +62,8 @@ describe('ERC20Service', () => {
 
   describe('getApprovalStatus', () => {
     it('should return correct approval status when approved', async () => {
-      const { getPublicClient } = await import('../../contracts');
-      const mockClient = getPublicClient(4202);
-      
-      // Mock the readContract call for allowance check
-      vi.mocked(mockClient.readContract).mockResolvedValue(BigInt('2000000000000000000')); // 2 ETH allowance
+      // Mock checkAllowance method directly
+      vi.spyOn(erc20Service, 'checkAllowance').mockResolvedValue(BigInt('2000000000000000000'));
       
       const result = await erc20Service.getApprovalStatus(
         mockTokenAddress,
@@ -82,11 +79,8 @@ describe('ERC20Service', () => {
     });
 
     it('should return correct approval status when not approved', async () => {
-      const { getPublicClient } = await import('../../contracts');
-      const mockClient = getPublicClient(4202);
-      
-      // Mock the readContract call for allowance check
-      vi.mocked(mockClient.readContract).mockResolvedValue(BigInt('500000000000000000')); // 0.5 ETH allowance
+      // Mock checkAllowance method directly
+      vi.spyOn(erc20Service, 'checkAllowance').mockResolvedValue(BigInt('500000000000000000'));
       
       const result = await erc20Service.getApprovalStatus(
         mockTokenAddress,
