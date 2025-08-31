@@ -17,6 +17,7 @@ contract PaymentCore is ReentrancyGuard, Ownable, Pausable {
     uint256 private _paymentCounter;
     
     RelayValidator public relayValidator;
+    mapping(address => bool) public trustedAdapters;
 
     enum PaymentStatus {
         Pending,
@@ -87,6 +88,43 @@ contract PaymentCore is ReentrancyGuard, Ownable, Pausable {
 
     function setRelayValidator(address _relayValidator) external onlyOwner {
         relayValidator = RelayValidator(_relayValidator);
+    }
+
+    function setTrustedAdapter(address adapter, bool trusted) external onlyOwner {
+        trustedAdapters[adapter] = trusted;
+    }
+
+    function createPaymentFromAdapter(
+        address recipient,
+        address token,
+        uint256 amount,
+        string calldata metadataURI
+    ) external returns (uint256) {
+        require(trustedAdapters[msg.sender], "Not trusted adapter");
+        require(recipient != address(0) && recipient != msg.sender, "UnauthorizedAction");
+        require(amount > 0, "InsufficientAmount");
+
+        uint256 fee = (amount * FEE_BASIS_POINTS) / 10000;
+        _paymentCounter++;
+        uint256 paymentId = _paymentCounter;
+
+        Payment storage payment = payments[paymentId];
+        payment.id = paymentId;
+        payment.sender = msg.sender;
+        payment.recipient = recipient;
+        payment.token = token;
+        payment.amount = amount;
+        payment.fee = fee;
+        payment.status = PaymentStatus.Pending;
+        payment.createdAt = block.timestamp;
+        payment.metadataURI = metadataURI;
+
+        senderPayments[msg.sender].push(paymentId);
+        recipientPayments[recipient].push(paymentId);
+        collectedFees[token] += fee;
+
+        emit PaymentCreated(paymentId, msg.sender, recipient, token, amount, fee, metadataURI, "", "");
+        return paymentId;
     }
 
     function createPayment(
