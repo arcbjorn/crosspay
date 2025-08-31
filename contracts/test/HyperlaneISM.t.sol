@@ -68,6 +68,7 @@ contract HyperlaneISMTest is Test {
             address(mockMailbox),
             address(paymentCore)
         );
+        paymentCore.setTrustedAdapter(address(hyperlaneISM), true);
         
         vm.deal(alice, 10 ether);
         vm.deal(bob, 10 ether);

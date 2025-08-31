@@ -12,6 +12,10 @@ contract RelayValidatorTest is Test {
     
     function setUp() public {
         relayValidator = new RelayValidator();
+        // Align validator addresses with signing keys used by vm.sign
+        validator1 = vm.addr(1);
+        validator2 = vm.addr(2);
+        validator3 = vm.addr(3);
     }
 
     function testRegisterValidator() public {

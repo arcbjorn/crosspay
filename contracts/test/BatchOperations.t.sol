@@ -6,6 +6,7 @@ import "../src/BatchOperations.sol";
 import "../src/ConfidentialPayments.sol";
 import "../src/RelayValidator.sol";
 import "../src/TrancheVault.sol";
+import "../src/PaymentCore.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "fhevm/lib/TFHE.sol";
 
@@ -24,6 +25,7 @@ contract BatchOperationsTest is Test {
     ConfidentialPayments public confidentialPayments;
     RelayValidator public relayValidator;
     TrancheVault public trancheVault;
+    PaymentCore public paymentCore;
     MockToken public token;
     
     address public user = address(0x1);
@@ -40,11 +42,13 @@ contract BatchOperationsTest is Test {
             "Test Vault",
             "TV"
         );
+        paymentCore = new PaymentCore();
         
         batchOps = new BatchOperations(
             address(confidentialPayments),
             address(relayValidator),
-            address(trancheVault)
+            address(trancheVault),
+            address(paymentCore)
         );
         
         // Fund user

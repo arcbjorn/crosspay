@@ -60,8 +60,9 @@ contract DVNAdapterTest is Test {
             address(mockEndpoint),
             address(paymentCore)
         );
-        
+
         paymentCore.setRelayValidator(address(dvnAdapter));
+        paymentCore.setTrustedAdapter(address(dvnAdapter), true);
         
         vm.deal(alice, 10 ether);
         vm.deal(bob, 10 ether);

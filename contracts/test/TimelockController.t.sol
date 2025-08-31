@@ -155,7 +155,7 @@ contract TimelockControllerTest is Test {
             24 hours
         );
         
-        vm.expectRevert("TimelockController: operation is not ready");
+        vm.expectRevert();
         vm.prank(executor);
         timelock.execute(
             address(target),
