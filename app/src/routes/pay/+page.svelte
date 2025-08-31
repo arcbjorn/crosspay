@@ -23,6 +23,8 @@
   
   $: fee = amount ? (parseFloat(amount) * 0.001).toFixed(4) : '0';
   $: total = amount ? (parseFloat(amount) + parseFloat(fee)).toFixed(4) : '0';
+  $: selectedChainConfig = SUPPORTED_CHAINS[selectedChain];
+  $: nativeSymbol = selectedChainConfig?.nativeCurrency.symbol || 'ETH';
   
   const handleSubmit = async () => {
     if (!wallet.isConnected) {
@@ -196,7 +198,7 @@
               class="select select-bordered w-full"
               bind:value={token}
             >
-              <option value="0x0000000000000000000000000000000000000000">ETH (Native)</option>
+              <option value="0x0000000000000000000000000000000000000000">{nativeSymbol} (Native)</option>
               <!-- Mock USDC addresses would go here -->
               <option value="0xa0b86991c31cc0c24b383c0d36b8ef073b3b2c0f8">USDC (Mock)</option>
             </select>
@@ -218,7 +220,7 @@
               required
             />
             <label class="label">
-              <span class="label-text-alt">Available: {wallet.balance ? (Number(wallet.balance) / 10**18).toFixed(4) : '0'} ETH</span>
+              <span class="label-text-alt">Available: {wallet.balance ? (Number(wallet.balance) / 10**18).toFixed(4) : '0'} {nativeSymbol}</span>
             </label>
           </div>
           
@@ -261,16 +263,16 @@
             <div class="alert">
               <div class="flex justify-between w-full">
                 <span>Payment Amount:</span>
-                <span class="font-mono">{amount} ETH</span>
+                <span class="font-mono">{amount} {nativeSymbol}</span>
               </div>
               <div class="flex justify-between w-full">
                 <span>Protocol Fee (0.1%):</span>
-                <span class="font-mono">{fee} ETH</span>
+                <span class="font-mono">{fee} {nativeSymbol}</span>
               </div>
               <div class="divider my-2"></div>
               <div class="flex justify-between w-full font-bold">
                 <span>Total:</span>
-                <span class="font-mono">{total} ETH</span>
+                <span class="font-mono">{total} {nativeSymbol}</span>
               </div>
             </div>
           {/if}
