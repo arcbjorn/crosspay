@@ -10,6 +10,11 @@ export interface Payment {
   createdAt: bigint;
   completedAt: bigint;
   metadataURI: string;
+  receiptCID: string;
+  senderENS: string;
+  recipientENS: string;
+  oraclePrice: bigint;
+  randomSeed: string;
 }
 
 export interface Receipt {
@@ -24,6 +29,8 @@ export interface Receipt {
 export interface ContractAddresses {
   PaymentCore: string;
   ReceiptRegistry: string;
+  FlareOracle: string;
+  SubnameRegistry: string;
   ComplianceBase?: string;
   deployer: string;
   chainId: string;
