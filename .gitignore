@@ -144,9 +144,9 @@ deployments/*.json
 !deployments/.gitkeep
 
 # Documentation (keep these for now)
-#CLAUDE.md
-#AGENTS.md
-#GEMINI.md
-#PLAN.md
-#MASTER*
-#MODULE*
+CLAUDE.md
+AGENTS.md
+GEMINI.md
+PLAN.md
+MASTER*
+MODULE*
