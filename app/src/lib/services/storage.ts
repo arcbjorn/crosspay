@@ -49,6 +49,14 @@ interface NetworkInfo {
   storageProviders: number;
 }
 
+interface VerificationResult {
+  cid: string;
+  valid: boolean;
+  size: number;
+  pinned: boolean;
+  metadata: Record<string, string> | null;
+}
+
 export class StorageService {
   private baseUrl: string;
 
@@ -246,6 +254,24 @@ export class StorageService {
   }
 
   /**
+   * Verify file integrity and metadata
+   */
+  async verifyFile(cid: string): Promise<VerificationResult> {
+    try {
+      const response = await fetch(`${this.baseUrl}/verify/${cid}`);
+      
+      if (!response.ok) {
+        throw new Error(`Verification failed: ${response.status} ${response.statusText}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('File verification failed:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Check if the storage service is available
    */
   async isServiceAvailable(): Promise<boolean> {
@@ -312,5 +338,6 @@ export type {
   FileInfo, 
   DealStatus, 
   CostEstimate, 
-  NetworkInfo 
+  NetworkInfo,
+  VerificationResult 
 };
