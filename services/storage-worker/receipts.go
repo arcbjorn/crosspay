@@ -6,9 +6,8 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strings"
 	"time"
-
-	"github.com/gin-gonic/gin"
 )
 
 type PaymentData struct {
@@ -55,24 +54,37 @@ type GenerateReceiptResponse struct {
 	CreatedAt time.Time `json:"created_at"`
 }
 
-func handleGenerateReceipt(c *gin.Context) {
+func handleGenerateReceipt(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "POST" {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		json.NewEncoder(w).Encode(map[string]interface{}{"error": "Method not allowed"})
+		return
+	}
+
 	var req GenerateReceiptRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]interface{}{"error": "Invalid request format"})
 		return
 	}
 
 	// Fetch payment data (mock implementation)
 	paymentData, err := fetchPaymentData(req.PaymentID)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": fmt.Sprintf("Payment not found: %v", err)})
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusNotFound)
+		json.NewEncoder(w).Encode(map[string]interface{}{"error": fmt.Sprintf("Payment not found: %v", err)})
 		return
 	}
 
 	// Generate receipt
 	receipt, err := generateReceipt(paymentData, req.Format, req.Language)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Receipt generation failed: %v", err)})
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]interface{}{"error": fmt.Sprintf("Receipt generation failed: %v", err)})
 		return
 	}
 
@@ -90,14 +102,18 @@ func handleGenerateReceipt(c *gin.Context) {
 	}
 
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Receipt formatting failed: %v", err)})
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]interface{}{"error": fmt.Sprintf("Receipt formatting failed: %v", err)})
 		return
 	}
 
 	// Upload to Filecoin
 	cid, err := uploadToFilecoin(uploadData, filename)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Storage upload failed: %v", err)})
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]interface{}{"error": fmt.Sprintf("Storage upload failed: %v", err)})
 		return
 	}
 
@@ -111,60 +127,81 @@ func handleGenerateReceipt(c *gin.Context) {
 		CreatedAt: time.Now(),
 	}
 
-	c.JSON(http.StatusOK, response)
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(response)
 }
 
-func handleDownloadReceipt(c *gin.Context) {
-	receiptID := c.Param("id")
+func handleDownloadReceipt(w http.ResponseWriter, r *http.Request) {
+	// Extract receipt ID from URL path
+	path := strings.TrimPrefix(r.URL.Path, "/api/receipts/download/")
+	receiptID := strings.TrimSuffix(path, "/")
 	if receiptID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Receipt ID required"})
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]interface{}{"error": "Receipt ID required"})
 		return
 	}
 
 	// Extract CID from receipt ID or lookup in database
 	cid, err := getCIDFromReceiptID(receiptID)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Receipt not found"})
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusNotFound)
+		json.NewEncoder(w).Encode(map[string]interface{}{"error": "Receipt not found"})
 		return
 	}
 
 	// Retrieve from Filecoin
 	data, metadata, err := retrieveFromFilecoin(cid)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Retrieval failed: %v", err)})
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]interface{}{"error": fmt.Sprintf("Retrieval failed: %v", err)})
 		return
 	}
 
 	// Set appropriate headers
-	c.Header("Content-Type", metadata["contentType"])
-	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=%s", metadata["filename"]))
-	c.Data(http.StatusOK, metadata["contentType"], data)
+	w.Header().Set("Content-Type", metadata["contentType"])
+	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%s", metadata["filename"]))
+	w.WriteHeader(http.StatusOK)
+	w.Write(data)
 }
 
-func handleVerifyReceipt(c *gin.Context) {
-	cid := c.Param("cid")
+func handleVerifyReceipt(w http.ResponseWriter, r *http.Request) {
+	// Extract CID from URL path
+	path := strings.TrimPrefix(r.URL.Path, "/api/receipts/verify/")
+	cid := strings.TrimSuffix(path, "/")
 	if cid == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "CID required"})
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]interface{}{"error": "CID required"})
 		return
 	}
 
 	// Retrieve and verify receipt
 	data, _, err := retrieveFromFilecoin(cid)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Receipt not found"})
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusNotFound)
+		json.NewEncoder(w).Encode(map[string]interface{}{"error": "Receipt not found"})
 		return
 	}
 
 	var receipt Receipt
 	if err := json.Unmarshal(data, &receipt); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid receipt format"})
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]interface{}{"error": "Invalid receipt format"})
 		return
 	}
 
 	// Verify receipt signature and integrity
 	isValid := verifyReceiptSignature(receipt)
 
-	c.JSON(http.StatusOK, gin.H{
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]interface{}{
 		"cid":       cid,
 		"valid":     isValid,
 		"payment_id": receipt.Payment.ID,
