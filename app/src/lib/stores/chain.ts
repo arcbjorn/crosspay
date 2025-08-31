@@ -75,6 +75,31 @@ export const SUPPORTED_CHAINS: Record<number, ChainConfig> = {
     },
     confirmations: 6,
   },
+  5115: {
+    id: 5115,
+    name: 'Citrea Testnet',
+    nativeCurrency: {
+      name: 'Citrea Bitcoin',
+      symbol: 'cBTC',
+      decimals: 18,
+    },
+    rpcUrls: ['https://rpc.testnet.citrea.xyz'],
+    blockExplorers: [
+      {
+        name: 'Citrea Testnet Explorer',
+        url: 'https://explorer.testnet.citrea.xyz',
+      },
+    ],
+    testnet: true,
+    faucets: ['https://citrea.xyz/faucet'],
+    blockTime: 10, // 10 second blocks  
+    gasPrice: {
+      average: '0.01',
+      fast: '0.02',
+      standard: '0.01'
+    },
+    confirmations: 3,
+  },
 };
 
 export const DEFAULT_CHAIN_ID = 4202; // Lisk Sepolia
