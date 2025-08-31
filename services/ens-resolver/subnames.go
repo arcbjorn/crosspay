@@ -1,13 +1,12 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
 	"strings"
 	"time"
-
-	"github.com/gin-gonic/gin"
 )
 
 type SubnameRegistration struct {
@@ -90,34 +89,47 @@ func initSubnameRegistry() {
 	log.Printf("Subname registry initialized with %d records", len(subnameRecords))
 }
 
-func handleRegisterSubname(c *gin.Context) {
+func handleRegisterSubname(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	
 	var request struct {
-		Subname     string            `json:"subname" binding:"required"`
-		Domain      string            `json:"domain" binding:"required"`
-		Owner       string            `json:"owner" binding:"required"`
-		Address     string            `json:"address" binding:"required"`
+		Subname     string            `json:"subname"`
+		Domain      string            `json:"domain"`
+		Owner       string            `json:"owner"`
+		Address     string            `json:"address"`
 		TTL         int64             `json:"ttl"`
 		TextRecords map[string]string `json:"text_records"`
 	}
 	
-	if err := c.ShouldBindJSON(&request); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
+	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+		w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusBadRequest)
+	json.NewEncoder(w).Encode(map[string]interface{}{"error": "Invalid request format"})
 		return
 	}
 	
 	// Validate inputs
 	if !strings.HasSuffix(request.Domain, ".eth") {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Only .eth domains supported"})
+		w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusBadRequest)
+	json.NewEncoder(w).Encode(map[string]interface{}{"error": "Only .eth domains supported"})
 		return
 	}
 	
 	if strings.Contains(request.Subname, ".") {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Subname should not contain dots"})
+		w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusBadRequest)
+	json.NewEncoder(w).Encode(map[string]interface{}{"error": "Subname should not contain dots"})
 		return
 	}
 	
 	if !isValidAddress(request.Owner) || !isValidAddress(request.Address) {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid address format"})
+		w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusBadRequest)
+	json.NewEncoder(w).Encode(map[string]interface{}{"error": "Invalid address format"})
 		return
 	}
 	
@@ -129,7 +141,9 @@ func handleRegisterSubname(c *gin.Context) {
 	cacheMutex.RUnlock()
 	
 	if exists && existing.Active {
-		c.JSON(http.StatusConflict, gin.H{"error": "Subname already registered"})
+		w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusConflict)
+	json.NewEncoder(w).Encode(map[string]interface{}{"error": "Subname already registered"})
 		return
 	}
 	
@@ -183,7 +197,9 @@ func handleRegisterSubname(c *gin.Context) {
 	
 	log.Printf("Subname registered: %s -> %s", fullSubname, request.Address)
 	
-	c.JSON(http.StatusCreated, gin.H{
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(map[string]interface{}{
 		"message":     "Subname registered successfully",
 		"subname":     fullSubname,
 		"address":     request.Address,
@@ -193,11 +209,19 @@ func handleRegisterSubname(c *gin.Context) {
 	})
 }
 
-func handleListSubnames(c *gin.Context) {
-	domain := strings.ToLower(c.Param("domain"))
+func handleListSubnames(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	
+	path := strings.TrimPrefix(r.URL.Path, "/api/subnames/list/")
+	domain := strings.ToLower(path)
 	
 	if !strings.HasSuffix(domain, ".eth") {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Only .eth domains supported"})
+		w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusBadRequest)
+	json.NewEncoder(w).Encode(map[string]interface{}{"error": "Only .eth domains supported"})
 		return
 	}
 	
@@ -206,7 +230,9 @@ func handleListSubnames(c *gin.Context) {
 	
 	if !exists {
 		cacheMutex.RUnlock()
-		c.JSON(http.StatusOK, gin.H{
+		w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]interface{}{
 			"domain":   domain,
 			"subnames": []string{},
 			"count":    0,
@@ -223,38 +249,55 @@ func handleListSubnames(c *gin.Context) {
 	}
 	cacheMutex.RUnlock()
 	
-	c.JSON(http.StatusOK, gin.H{
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]interface{}{
 		"domain":        domain,
 		"registrations": registrations,
 		"count":         len(registrations),
 	})
 }
 
-func handleBulkRegister(c *gin.Context) {
+func handleBulkRegister(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	
 	var request BulkRegistrationRequest
-	if err := c.ShouldBindJSON(&request); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
+	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+		w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusBadRequest)
+	json.NewEncoder(w).Encode(map[string]interface{}{"error": "Invalid request format"})
 		return
 	}
 	
 	if len(request.Subnames) == 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "No subnames provided"})
+		w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusBadRequest)
+	json.NewEncoder(w).Encode(map[string]interface{}{"error": "No subnames provided"})
 		return
 	}
 	
 	if len(request.Subnames) > 100 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Too many subnames (max 100)"})
+		w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusBadRequest)
+	json.NewEncoder(w).Encode(map[string]interface{}{"error": "Too many subnames (max 100)"})
 		return
 	}
 	
 	// Validate domain and owner
 	if !strings.HasSuffix(request.Domain, ".eth") {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Only .eth domains supported"})
+		w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusBadRequest)
+	json.NewEncoder(w).Encode(map[string]interface{}{"error": "Only .eth domains supported"})
 		return
 	}
 	
 	if !isValidAddress(request.Owner) {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid owner address"})
+		w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusBadRequest)
+	json.NewEncoder(w).Encode(map[string]interface{}{"error": "Invalid owner address"})
 		return
 	}
 	
@@ -336,14 +379,23 @@ func handleBulkRegister(c *gin.Context) {
 		Errors:     errors,
 	}
 	
-	c.JSON(http.StatusOK, response)
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
 }
 
-func handleRevokeSubname(c *gin.Context) {
-	subname := strings.ToLower(c.Param("subname"))
+func handleRevokeSubname(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodDelete {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	
+	path := strings.TrimPrefix(r.URL.Path, "/api/subnames/revoke/")
+	subname := strings.ToLower(path)
 	
 	if !strings.Contains(subname, ".") {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid subname format"})
+		w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusBadRequest)
+	json.NewEncoder(w).Encode(map[string]interface{}{"error": "Invalid subname format"})
 		return
 	}
 	
@@ -352,7 +404,9 @@ func handleRevokeSubname(c *gin.Context) {
 	
 	registration, exists := subnameRecords[subname]
 	if !exists || !registration.Active {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Subname not found or already inactive"})
+		w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusNotFound)
+	json.NewEncoder(w).Encode(map[string]interface{}{"error": "Subname not found or already inactive"})
 		return
 	}
 	
@@ -368,7 +422,9 @@ func handleRevokeSubname(c *gin.Context) {
 	
 	log.Printf("Subname revoked: %s", subname)
 	
-	c.JSON(http.StatusOK, gin.H{
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]interface{}{
 		"message":    "Subname revoked successfully",
 		"subname":    subname,
 		"revoked_at": time.Now().Unix(),
