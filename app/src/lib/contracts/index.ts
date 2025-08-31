@@ -1,7 +1,9 @@
 import { createPublicClient, createWalletClient, custom, http, type Address } from 'viem';
 import { liskSepolia, baseSepolia } from 'viem/chains';
-import PaymentCoreABI from '../../../packages/types/PaymentCore.json';
-import ReceiptRegistryABI from '../../../packages/types/ReceiptRegistry.json';
+import PaymentCoreABI from '../abis/PaymentCore.json';
+import ReceiptRegistryABI from '../abis/ReceiptRegistry.json';
+import FlareOracleABI from '../abis/FlareOracle.json';
+import SubnameRegistryABI from '../abis/SubnameRegistry.json';
 import type { ChainConfig } from '../stores/chain';
 
 // Contract addresses - these will be updated after deployment
@@ -60,7 +62,7 @@ export function getContractAddress(chainId: number, contract: 'PaymentCore' | 'R
   return addresses[contract];
 }
 
-export { PaymentCoreABI, ReceiptRegistryABI };
+export { PaymentCoreABI, ReceiptRegistryABI, FlareOracleABI, SubnameRegistryABI };
 
 export type PaymentCoreContract = {
   address: Address;
