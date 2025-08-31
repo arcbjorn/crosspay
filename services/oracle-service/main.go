@@ -2,22 +2,22 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"log"
 	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
-
-	"github.com/gin-gonic/gin"
 )
 
 func main() {
-	r := gin.Default()
+	mux := http.NewServeMux()
 	
 	// Health check endpoint
-	r.GET("/health", func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{
+	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
 			"status": "healthy",
 			"service": "oracle-service",
 			"timestamp": time.Now().Unix(),
@@ -25,45 +25,32 @@ func main() {
 	})
 
 	// FTSO endpoints
-	ftsoGroup := r.Group("/api/ftso")
-	{
-		ftsoGroup.GET("/price/:symbol", handleGetPrice)
-		ftsoGroup.GET("/price/:symbol/history", handleGetPriceHistory)
-		ftsoGroup.POST("/price/update", handleUpdatePrice)
-		ftsoGroup.GET("/symbols", handleGetSupportedSymbols)
-	}
+	mux.HandleFunc("/api/ftso/price/", handleGetPrice)
+	mux.HandleFunc("/api/ftso/symbols", handleGetSupportedSymbols)
+	mux.HandleFunc("/api/ftso/price/update", handleUpdatePrice)
 
 	// Random number endpoints
-	randomGroup := r.Group("/api/random")
-	{
-		randomGroup.POST("/request", handleRequestRandom)
-		randomGroup.GET("/status/:requestId", handleRandomStatus)
-		randomGroup.POST("/fulfill", handleFulfillRandom)
-		randomGroup.POST("/winners", handleSelectWinners)
-	}
+	mux.HandleFunc("/api/random/request", handleRequestRandom)
+	mux.HandleFunc("/api/random/status/", handleRandomStatus)
+	mux.HandleFunc("/api/random/fulfill", handleFulfillRandom)
+	mux.HandleFunc("/api/random/winners", handleSelectWinners)
 
 	// FDC endpoints
-	fdcGroup := r.Group("/api/fdc")
-	{
-		fdcGroup.POST("/proof/submit", handleSubmitProof)
-		fdcGroup.GET("/proof/verify/:proofId", handleVerifyProof)
-		fdcGroup.POST("/proof/confirm", handleConfirmProof)
-		fdcGroup.POST("/webhook/payment", handlePaymentWebhook)
-		fdcGroup.GET("/proofs", handleGetProofsByTx)
-	}
+	mux.HandleFunc("/api/fdc/proof/submit", handleSubmitProof)
+	mux.HandleFunc("/api/fdc/proof/verify/", handleVerifyProof)
+	mux.HandleFunc("/api/fdc/proof/confirm", handleConfirmProof)
+	mux.HandleFunc("/api/fdc/webhook/payment", handlePaymentWebhook)
+	mux.HandleFunc("/api/fdc/proofs", handleGetProofsByTx)
 
 	// Oracle health endpoints
-	healthGroup := r.Group("/api/oracle")
-	{
-		healthGroup.GET("/status", handleOracleStatus)
-		healthGroup.POST("/healthcheck", handlePerformHealthCheck)
-		healthGroup.POST("/circuit-breaker/pause", handleEmergencyPause)
-		healthGroup.POST("/circuit-breaker/resume", handleEmergencyResume)
-	}
+	mux.HandleFunc("/api/oracle/status", handleOracleStatus)
+	mux.HandleFunc("/api/oracle/healthcheck", handlePerformHealthCheck)
+	mux.HandleFunc("/api/oracle/circuit-breaker/pause", handleEmergencyPause)
+	mux.HandleFunc("/api/oracle/circuit-breaker/resume", handleEmergencyResume)
 
 	srv := &http.Server{
 		Addr:    ":8081",
-		Handler: r,
+		Handler: mux,
 	}
 
 	// Initialize oracle services
@@ -134,13 +121,3 @@ func startRandomFulfiller() {
 	}
 }
 
-func startHealthMonitor() {
-	ticker := time.NewTicker(1 * time.Minute)
-	defer ticker.Stop()
-
-	log.Println("Starting oracle health monitor...")
-	
-	for range ticker.C {
-		performOracleHealthCheck()
-	}
-}
