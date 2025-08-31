@@ -1,0 +1,46 @@
+{
+  "name": "crosspay-protocol",
+  "version": "0.1.0",
+  "description": "Verifiable, private, cross-chain payment infrastructure",
+  "private": true,
+  "scripts": {
+    "dev": "pnpm --filter app dev",
+    "build": "pnpm run build:contracts && pnpm run build:app",
+    "build:contracts": "pnpm --filter contracts build",
+    "build:app": "pnpm --filter app build",
+    "test": "pnpm run test:contracts && pnpm run test:app",
+    "test:contracts": "pnpm --filter contracts test",
+    "test:app": "pnpm --filter app test",
+    "lint": "pnpm --recursive lint",
+    "format": "pnpm --recursive format",
+    "typecheck": "pnpm --recursive typecheck",
+    "deploy:lisk": "pnpm --filter contracts deploy:lisk",
+    "deploy:base": "pnpm --filter contracts deploy:base"
+  },
+  "keywords": [
+    "blockchain",
+    "payments",
+    "defi",
+    "cross-chain"
+  ],
+  "author": "",
+  "license": "MIT",
+  "packageManager": "pnpm@10.15.0",
+  "engines": {
+    "node": ">=18.0.0",
+    "pnpm": ">=8.0.0"
+  },
+  "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "^8.41.0",
+    "@typescript-eslint/parser": "^8.41.0",
+    "eslint": "^9.34.0",
+    "eslint-config-prettier": "^10.1.8",
+    "prettier": "^3.6.2",
+    "typescript": "^5.9.2"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild"
+    ]
+  }
+}
