@@ -98,6 +98,16 @@
         "name": "metadataURI",
         "type": "string",
         "internalType": "string"
+      },
+      {
+        "name": "senderENS",
+        "type": "string",
+        "internalType": "string"
+      },
+      {
+        "name": "recipientENS",
+        "type": "string",
+        "internalType": "string"
       }
     ],
     "outputs": [
@@ -108,6 +118,25 @@
       }
     ],
     "stateMutability": "payable"
+  },
+  {
+    "type": "function",
+    "name": "getCID",
+    "inputs": [
+      {
+        "name": "paymentId",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "string",
+        "internalType": "string"
+      }
+    ],
+    "stateMutability": "view"
   },
   {
     "type": "function",
@@ -174,6 +203,31 @@
             "name": "metadataURI",
             "type": "string",
             "internalType": "string"
+          },
+          {
+            "name": "receiptCID",
+            "type": "string",
+            "internalType": "string"
+          },
+          {
+            "name": "senderENS",
+            "type": "string",
+            "internalType": "string"
+          },
+          {
+            "name": "recipientENS",
+            "type": "string",
+            "internalType": "string"
+          },
+          {
+            "name": "oraclePrice",
+            "type": "string",
+            "internalType": "string"
+          },
+          {
+            "name": "randomSeed",
+            "type": "bytes32",
+            "internalType": "bytes32"
           }
         ]
       }
@@ -324,6 +378,31 @@
         "name": "metadataURI",
         "type": "string",
         "internalType": "string"
+      },
+      {
+        "name": "receiptCID",
+        "type": "string",
+        "internalType": "string"
+      },
+      {
+        "name": "senderENS",
+        "type": "string",
+        "internalType": "string"
+      },
+      {
+        "name": "recipientENS",
+        "type": "string",
+        "internalType": "string"
+      },
+      {
+        "name": "oraclePrice",
+        "type": "string",
+        "internalType": "string"
+      },
+      {
+        "name": "randomSeed",
+        "type": "bytes32",
+        "internalType": "bytes32"
       }
     ],
     "stateMutability": "view"
@@ -398,6 +477,60 @@
   },
   {
     "type": "function",
+    "name": "setCID",
+    "inputs": [
+      {
+        "name": "paymentId",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "receiptCID",
+        "type": "string",
+        "internalType": "string"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "setOraclePrice",
+    "inputs": [
+      {
+        "name": "paymentId",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "price",
+        "type": "string",
+        "internalType": "string"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "setRandomSeed",
+    "inputs": [
+      {
+        "name": "paymentId",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "seed",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
     "name": "transferOwnership",
     "inputs": [
       {
@@ -455,6 +588,25 @@
         "type": "address",
         "indexed": true,
         "internalType": "address"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "OraclePriceSet",
+    "inputs": [
+      {
+        "name": "paymentId",
+        "type": "uint256",
+        "indexed": true,
+        "internalType": "uint256"
+      },
+      {
+        "name": "price",
+        "type": "string",
+        "indexed": false,
+        "internalType": "string"
       }
     ],
     "anonymous": false
@@ -574,6 +726,18 @@
         "type": "string",
         "indexed": false,
         "internalType": "string"
+      },
+      {
+        "name": "senderENS",
+        "type": "string",
+        "indexed": false,
+        "internalType": "string"
+      },
+      {
+        "name": "recipientENS",
+        "type": "string",
+        "indexed": false,
+        "internalType": "string"
       }
     ],
     "anonymous": false
@@ -593,6 +757,44 @@
         "type": "address",
         "indexed": true,
         "internalType": "address"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "RandomSeedSet",
+    "inputs": [
+      {
+        "name": "paymentId",
+        "type": "uint256",
+        "indexed": true,
+        "internalType": "uint256"
+      },
+      {
+        "name": "seed",
+        "type": "bytes32",
+        "indexed": false,
+        "internalType": "bytes32"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "ReceiptStored",
+    "inputs": [
+      {
+        "name": "paymentId",
+        "type": "uint256",
+        "indexed": true,
+        "internalType": "uint256"
+      },
+      {
+        "name": "receiptCID",
+        "type": "string",
+        "indexed": false,
+        "internalType": "string"
       }
     ],
     "anonymous": false
