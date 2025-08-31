@@ -7,10 +7,9 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
-
-	"github.com/gin-gonic/gin"
 )
 
 type ExternalProof struct {
@@ -48,16 +47,46 @@ func initializeFDC() {
 	log.Println("FDC service initialized")
 }
 
-func handleSubmitProof(c *gin.Context) {
+func handleSubmitProof(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "POST" {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		json.NewEncoder(w).Encode(map[string]interface{}{"error": "Method not allowed"})
+		return
+	}
+
 	var request struct {
-		MerkleRoot string            `json:"merkle_root" binding:"required"`
-		Proof      []string          `json:"proof" binding:"required"`
-		Data       string            `json:"data" binding:"required"`
+		MerkleRoot string            `json:"merkle_root"`
+		Proof      []string          `json:"proof"`
+		Data       string            `json:"data"`
 		Metadata   map[string]string `json:"metadata"`
 	}
 	
-	if err := c.ShouldBindJSON(&request); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
+	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]interface{}{"error": "Invalid request format"})
+		return
+	}
+
+	if request.MerkleRoot == "" {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]interface{}{"error": "Merkle root is required"})
+		return
+	}
+
+	if len(request.Proof) == 0 {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]interface{}{"error": "Proof is required"})
+		return
+	}
+
+	if request.Data == "" {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]interface{}{"error": "Data is required"})
 		return
 	}
 	
@@ -89,7 +118,9 @@ func handleSubmitProof(c *gin.Context) {
 	
 	log.Printf("External proof submitted: %s", proofID)
 	
-	c.JSON(http.StatusOK, gin.H{
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]interface{}{
 		"proof_id":   proofID,
 		"status":     "submitted",
 		"data_hash":  proof.DataHash,
@@ -97,22 +128,26 @@ func handleSubmitProof(c *gin.Context) {
 	})
 }
 
-func handleVerifyProof(c *gin.Context) {
-	proofID := c.Param("proofId")
+func handleVerifyProof(w http.ResponseWriter, r *http.Request) {
+	// Extract proofId from URL path
+	path := strings.TrimPrefix(r.URL.Path, "/api/fdc/proof/verify/")
+	proofID := strings.TrimSuffix(path, "/")
 	
 	proofsMutex.RLock()
 	proof, exists := externalProofs[proofID]
 	proofsMutex.RUnlock()
 	
 	if !exists {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Proof not found"})
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusNotFound)
+		json.NewEncoder(w).Encode(map[string]interface{}{"error": "Proof not found"})
 		return
 	}
 	
 	// Perform Merkle proof verification
 	isValid := verifyMerkleProof(proof.MerkleRoot, proof.Proof, proof.DataHash)
 	
-	response := gin.H{
+	response := map[string]interface{}{
 		"proof_id":     proofID,
 		"valid":        isValid,
 		"merkle_root":  proof.MerkleRoot,
@@ -126,22 +161,49 @@ func handleVerifyProof(c *gin.Context) {
 		response["error"] = "Merkle proof verification failed"
 	}
 	
-	c.JSON(http.StatusOK, response)
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(response)
 }
 
-func handleConfirmProof(c *gin.Context) {
+func handleConfirmProof(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "POST" {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		json.NewEncoder(w).Encode(map[string]interface{}{"error": "Method not allowed"})
+		return
+	}
+
 	var request struct {
-		ProofID string `json:"proof_id" binding:"required"`
-		Action  string `json:"action" binding:"required"` // "verify" or "reject"
+		ProofID string `json:"proof_id"`
+		Action  string `json:"action"` // "verify" or "reject"
 	}
 	
-	if err := c.ShouldBindJSON(&request); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
+	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]interface{}{"error": "Invalid request format"})
+		return
+	}
+
+	if request.ProofID == "" {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]interface{}{"error": "Proof ID is required"})
+		return
+	}
+
+	if request.Action == "" {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]interface{}{"error": "Action is required"})
 		return
 	}
 	
 	if request.Action != "verify" && request.Action != "reject" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Action must be 'verify' or 'reject'"})
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]interface{}{"error": "Action must be 'verify' or 'reject'"})
 		return
 	}
 	
@@ -150,12 +212,16 @@ func handleConfirmProof(c *gin.Context) {
 	
 	proof, exists := externalProofs[request.ProofID]
 	if !exists {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Proof not found"})
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusNotFound)
+		json.NewEncoder(w).Encode(map[string]interface{}{"error": "Proof not found"})
 		return
 	}
 	
 	if proof.Status != "submitted" {
-		c.JSON(http.StatusConflict, gin.H{"error": "Proof already processed"})
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusConflict)
+		json.NewEncoder(w).Encode(map[string]interface{}{"error": "Proof already processed"})
 		return
 	}
 	
@@ -176,37 +242,54 @@ func handleConfirmProof(c *gin.Context) {
 	
 	log.Printf("Proof %s %s", request.ProofID, proof.Status)
 	
-	c.JSON(http.StatusOK, gin.H{
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]interface{}{
 		"proof_id":    request.ProofID,
 		"status":      proof.Status,
 		"verified_at": proof.VerifiedAt,
 	})
 }
 
-func handlePaymentWebhook(c *gin.Context) {
+func handlePaymentWebhook(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "POST" {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		json.NewEncoder(w).Encode(map[string]interface{}{"error": "Method not allowed"})
+		return
+	}
+
 	var confirmation PaymentConfirmation
 	
-	if err := c.ShouldBindJSON(&confirmation); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid payment confirmation format"})
+	if err := json.NewDecoder(r.Body).Decode(&confirmation); err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]interface{}{"error": "Invalid payment confirmation format"})
 		return
 	}
 	
 	// Validate required fields
 	if confirmation.TxHash == "" || confirmation.From == "" || confirmation.To == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Missing required fields"})
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]interface{}{"error": "Missing required fields"})
 		return
 	}
 	
 	// Process payment confirmation and create FDC proof
 	proofID, err := createPaymentProof(confirmation)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to create proof: %v", err)})
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]interface{}{"error": fmt.Sprintf("Failed to create proof: %v", err)})
 		return
 	}
 	
 	log.Printf("Payment confirmation received for tx %s, proof created: %s", confirmation.TxHash, proofID)
 	
-	c.JSON(http.StatusOK, gin.H{
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]interface{}{
 		"status":    "processed",
 		"proof_id":  proofID,
 		"tx_hash":   confirmation.TxHash,
@@ -311,16 +394,20 @@ func getProofsForTransaction(txHash string) []ExternalProof {
 }
 
 // API endpoint to get proofs by transaction hash
-func handleGetProofsByTx(c *gin.Context) {
-	txHash := c.Query("tx_hash")
+func handleGetProofsByTx(w http.ResponseWriter, r *http.Request) {
+	txHash := r.URL.Query().Get("tx_hash")
 	if txHash == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "tx_hash parameter required"})
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]interface{}{"error": "tx_hash parameter required"})
 		return
 	}
 	
 	proofs := getProofsForTransaction(txHash)
 	
-	c.JSON(http.StatusOK, gin.H{
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]interface{}{
 		"tx_hash": txHash,
 		"proofs":  proofs,
 		"count":   len(proofs),
