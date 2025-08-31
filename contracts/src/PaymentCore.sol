@@ -232,7 +232,11 @@ contract PaymentCore is ReentrancyGuard, Ownable, Pausable {
         payment.status = PaymentStatus.Refunded;
         payment.completedAt = block.timestamp;
 
-        collectedFees[payment.token] -= payment.fee;
+        if (collectedFees[payment.token] >= payment.fee) {
+            collectedFees[payment.token] -= payment.fee;
+        } else {
+            collectedFees[payment.token] = 0;
+        }
 
         uint256 refundAmount = payment.amount + payment.fee;
         
@@ -264,7 +268,11 @@ contract PaymentCore is ReentrancyGuard, Ownable, Pausable {
         payment.status = PaymentStatus.Cancelled;
         payment.completedAt = block.timestamp;
 
-        collectedFees[payment.token] -= payment.fee;
+        if (collectedFees[payment.token] >= payment.fee) {
+            collectedFees[payment.token] -= payment.fee;
+        } else {
+            collectedFees[payment.token] = 0;
+        }
 
         uint256 refundAmount = payment.amount + payment.fee;
         
