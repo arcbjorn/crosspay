@@ -32,6 +32,11 @@ contract PaymentCore is ReentrancyGuard, Ownable, Pausable {
         uint256 createdAt;
         uint256 completedAt;
         string metadataURI;
+        string receiptCID;
+        string senderENS;
+        string recipientENS;
+        string oraclePrice;
+        bytes32 randomSeed;
     }
 
     mapping(uint256 => Payment) public payments;
@@ -46,8 +51,14 @@ contract PaymentCore is ReentrancyGuard, Ownable, Pausable {
         address token,
         uint256 amount,
         uint256 fee,
-        string metadataURI
+        string metadataURI,
+        string senderENS,
+        string recipientENS
     );
+
+    event ReceiptStored(uint256 indexed paymentId, string receiptCID);
+    event OraclePriceSet(uint256 indexed paymentId, string price);
+    event RandomSeedSet(uint256 indexed paymentId, bytes32 seed);
 
     event PaymentCompleted(uint256 indexed id, address indexed completer);
     event PaymentRefunded(uint256 indexed id, address indexed refunder);
@@ -67,7 +78,9 @@ contract PaymentCore is ReentrancyGuard, Ownable, Pausable {
         address recipient,
         address token,
         uint256 amount,
-        string calldata metadataURI
+        string calldata metadataURI,
+        string calldata senderENS,
+        string calldata recipientENS
     ) external payable nonReentrant whenNotPaused returns (uint256) {
         if (recipient == address(0) || recipient == msg.sender) {
             revert UnauthorizedAction();
@@ -92,6 +105,8 @@ contract PaymentCore is ReentrancyGuard, Ownable, Pausable {
         payment.status = PaymentStatus.Pending;
         payment.createdAt = block.timestamp;
         payment.metadataURI = metadataURI;
+        payment.senderENS = senderENS;
+        payment.recipientENS = recipientENS;
 
         if (token == address(0)) {
             if (msg.value != totalAmount) {
@@ -115,7 +130,9 @@ contract PaymentCore is ReentrancyGuard, Ownable, Pausable {
             token,
             amount,
             fee,
-            metadataURI
+            metadataURI,
+            senderENS,
+            recipientENS
         );
 
         return paymentId;
@@ -257,6 +274,55 @@ contract PaymentCore is ReentrancyGuard, Ownable, Pausable {
 
     function unpause() external onlyOwner {
         _unpause();
+    }
+
+    function setCID(uint256 paymentId, string calldata receiptCID) external {
+        Payment storage payment = payments[paymentId];
+        
+        if (payment.id == 0) {
+            revert InvalidPaymentId();
+        }
+        if (msg.sender != payment.sender && msg.sender != payment.recipient && msg.sender != owner()) {
+            revert UnauthorizedAction();
+        }
+
+        payment.receiptCID = receiptCID;
+        emit ReceiptStored(paymentId, receiptCID);
+    }
+
+    function setOraclePrice(uint256 paymentId, string calldata price) external {
+        Payment storage payment = payments[paymentId];
+        
+        if (payment.id == 0) {
+            revert InvalidPaymentId();
+        }
+        if (msg.sender != owner()) {
+            revert UnauthorizedAction();
+        }
+
+        payment.oraclePrice = price;
+        emit OraclePriceSet(paymentId, price);
+    }
+
+    function setRandomSeed(uint256 paymentId, bytes32 seed) external {
+        Payment storage payment = payments[paymentId];
+        
+        if (payment.id == 0) {
+            revert InvalidPaymentId();
+        }
+        if (msg.sender != owner()) {
+            revert UnauthorizedAction();
+        }
+
+        payment.randomSeed = seed;
+        emit RandomSeedSet(paymentId, seed);
+    }
+
+    function getCID(uint256 paymentId) external view returns (string memory) {
+        if (payments[paymentId].id == 0) {
+            revert InvalidPaymentId();
+        }
+        return payments[paymentId].receiptCID;
     }
 
     function getPaymentCount() external view returns (uint256) {
