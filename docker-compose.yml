@@ -1,0 +1,188 @@
+version: '3.8'
+
+services:
+  # Storage Worker Service
+  storage-worker:
+    build:
+      context: ./services/storage-worker
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      - FILECOIN_RPC_URL=https://calibration.node.glif.io/rpc/v0
+      - STORAGE_API_KEY=${STORAGE_API_KEY}
+      - SERVICE_NAME=storage-worker
+    volumes:
+      - storage_data:/data
+    networks:
+      - crosspay-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Oracle Service
+  oracle-service:
+    build:
+      context: ./services/oracle-service
+      dockerfile: Dockerfile
+    ports:
+      - "8081:8081"
+    environment:
+      - FLARE_RPC_URL=https://coston2-api.flare.network/ext/C/rpc
+      - FTSO_API_URL=https://coston2-api.flare.network/ftso/v1
+      - SERVICE_NAME=oracle-service
+    networks:
+      - crosspay-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8081/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ENS Resolver Service
+  ens-resolver:
+    build:
+      context: ./services/ens-resolver
+      dockerfile: Dockerfile
+    ports:
+      - "8082:8082"
+    environment:
+      - ENS_RPC_URL=https://sepolia.infura.io/v3/${INFURA_API_KEY}
+      - CACHE_TTL=3600
+      - SERVICE_NAME=ens-resolver
+    networks:
+      - crosspay-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8082/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Payment Processor Service (Main API Gateway)
+  payment-processor:
+    build:
+      context: ./services/payment-processor
+      dockerfile: Dockerfile
+    ports:
+      - "8083:8083"
+    environment:
+      - STORAGE_SERVICE_URL=http://storage-worker:8080
+      - ORACLE_SERVICE_URL=http://oracle-service:8081
+      - ENS_SERVICE_URL=http://ens-resolver:8082
+      - DATABASE_URL=postgresql://postgres:password@postgres:5432/crosspay
+      - SERVICE_NAME=payment-processor
+    depends_on:
+      - postgres
+      - storage-worker
+      - oracle-service
+      - ens-resolver
+    networks:
+      - crosspay-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8083/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Frontend Application
+  frontend:
+    build:
+      context: ./app
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - VITE_API_URL=http://localhost:8083
+      - VITE_STORAGE_URL=http://localhost:8080
+      - VITE_ORACLE_URL=http://localhost:8081
+      - VITE_ENS_URL=http://localhost:8082
+    depends_on:
+      - payment-processor
+    networks:
+      - crosspay-network
+    restart: unless-stopped
+
+  # Database
+  postgres:
+    image: postgres:15
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_DB=crosspay
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    networks:
+      - crosspay-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis (for caching and message queue)
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - crosspay-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Monitoring (Prometheus)
+  prometheus:
+    image: prom/prometheus:latest
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+    networks:
+      - crosspay-network
+    restart: unless-stopped
+
+  # Monitoring (Grafana)
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3001:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    networks:
+      - crosspay-network
+    restart: unless-stopped
+
+volumes:
+  storage_data:
+  postgres_data:
+  redis_data:
+  prometheus_data:
+  grafana_data:
+
+networks:
+  crosspay-network:
+    driver: bridge
