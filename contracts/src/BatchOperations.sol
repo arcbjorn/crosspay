@@ -4,12 +4,16 @@ pragma solidity ^0.8.24;
 import "./ConfidentialPayments.sol";
 import "./RelayValidator.sol";
 import "./TrancheVault.sol";
+import "./PaymentCore.sol";
 import "fhevm/lib/TFHE.sol";
 
 contract BatchOperations {
     ConfidentialPayments public immutable confidentialPayments;
     RelayValidator public immutable relayValidator;
     TrancheVault public immutable trancheVault;
+    PaymentCore public immutable paymentCore;
+
+    uint256 private constant FEE_BPS = 10; // Match PaymentCore fee
 
     struct BatchPayment {
         address recipient;
@@ -42,11 +46,13 @@ contract BatchOperations {
     constructor(
         address _confidentialPayments,
         address _relayValidator,
-        address _trancheVault
+        address _trancheVault,
+        address _paymentCore
     ) {
         confidentialPayments = ConfidentialPayments(_confidentialPayments);
         relayValidator = RelayValidator(_relayValidator);
         trancheVault = TrancheVault(_trancheVault);
+        paymentCore = PaymentCore(_paymentCore);
     }
 
     function batchCreatePayments(
@@ -57,29 +63,51 @@ contract BatchOperations {
         }
 
         paymentIds = new uint256[](payments.length);
-        uint256 totalValue = 0;
+
+        // Count ETH payments to split msg.value
+        uint256 ethCount = 0;
+        for (uint256 i = 0; i < payments.length; i++) {
+            if (payments[i].token == address(0)) ethCount++;
+        }
+        uint256 perShare = ethCount > 0 ? (msg.value / ethCount) : 0;
 
         for (uint256 i = 0; i < payments.length; i++) {
-            BatchPayment memory payment = payments[i];
-            
-            // Calculate required ETH for this payment
-            if (payment.token == address(0)) {
-                // For ETH payments, we need to estimate the value
-                // This is simplified - in practice you'd decode the encrypted amount
-                totalValue += 0.1 ether; // Placeholder
+            BatchPayment memory p = payments[i];
+
+            // If no FHE proof provided and ETH payment, create public payment via PaymentCore
+            if (p.token == address(0) && p.inputProof.length == 0 && !p.makePrivate) {
+                // Compute amount so that amount + fee == perShare
+                // amount = perShare * 10000 / (10000 + FEE_BPS)
+                uint256 amount = perShare * 10000 / (10000 + FEE_BPS);
+                uint256 fee = (amount * FEE_BPS) / 10000;
+                uint256 total = amount + fee;
+                try paymentCore.createPayment{value: total}(
+                    p.recipient,
+                    address(0),
+                    amount,
+                    p.metadataURI,
+                    "",
+                    ""
+                ) returns (uint256 pid) {
+                    paymentIds[i] = pid;
+                } catch {
+                    revert BatchExecutionFailed();
+                }
+                continue;
             }
 
+            // Otherwise, call confidential route (requires valid FHE input)
             try confidentialPayments.createConfidentialPayment{
-                value: payment.token == address(0) ? 0.1 ether : 0
+                value: 0
             }(
-                payment.recipient,
-                payment.token,
-                payment.encryptedAmount,
-                payment.inputProof,
-                payment.metadataURI,
-                payment.makePrivate
-            ) returns (uint256 paymentId) {
-                paymentIds[i] = paymentId;
+                p.recipient,
+                p.token,
+                p.encryptedAmount,
+                p.inputProof,
+                p.metadataURI,
+                p.makePrivate
+            ) returns (uint256 pid) {
+                paymentIds[i] = pid;
             } catch {
                 revert BatchExecutionFailed();
             }
@@ -127,10 +155,10 @@ contract BatchOperations {
         uint256 totalAmount = 0;
 
         for (uint256 i = 0; i < deposits.length; i++) {
-            BatchDeposit memory deposit = deposits[i];
-            totalAmount += deposit.amount;
+            BatchDeposit memory d = deposits[i];
+            totalAmount += d.amount;
 
-            try trancheVault.deposit(deposit.tranche, deposit.amount) {
+            try trancheVault.depositFor(msg.sender, d.tranche, d.amount) {
                 // Success
             } catch {
                 revert BatchExecutionFailed();
