@@ -50,6 +50,10 @@ contract TrancheVault is ERC20, Ownable, ReentrancyGuard, Pausable {
     mapping(address => UserPosition) public userPositions;
     mapping(uint256 => SlashingEvent) public slashingEvents;
     
+    // Track depositors for health factor updates after slashing
+    address[] private depositors;
+    mapping(address => bool) private isDepositor;
+    
     uint256 public totalVaultAssets;
     uint256 public insuranceFund;
     uint256 public performanceFeeRate = 1000; // 10%
@@ -243,6 +247,12 @@ contract TrancheVault is ERC20, Ownable, ReentrancyGuard, Pausable {
         }
 
         position.lastDepositTime = block.timestamp;
+        
+        // Track unique depositor
+        if (!isDepositor[msg.sender]) {
+            isDepositor[msg.sender] = true;
+            depositors.push(msg.sender);
+        }
         position.lastYieldCalculation = block.timestamp;
 
         tranches[tranche].totalDeposits += amount;
@@ -287,6 +297,12 @@ contract TrancheVault is ERC20, Ownable, ReentrancyGuard, Pausable {
 
         uint256 amount = withdrawalRequests[msg.sender];
         UserPosition storage position = userPositions[msg.sender];
+
+        // Ensure tranche liquidity is sufficient to honor the withdrawal
+        // Prevent arithmetic underflow on tranche balances during periods of losses/slashing
+        if (tranches[tranche].currentBalance < amount) {
+            revert InsufficientBalance();
+        }
 
         uint256 totalWithdrawable = amount + position.accruedYield;
         
@@ -472,7 +488,11 @@ contract TrancheVault is ERC20, Ownable, ReentrancyGuard, Pausable {
         
         if (userTrancheFunds == 0) return remainingAmount;
 
-        uint256 liquidatable = remainingAmount > userTrancheFunds ? userTrancheFunds : remainingAmount;
+        // Also cap by available tranche liquidity to avoid underflow
+        uint256 trancheAvailable = tranches[tranche].currentBalance;
+        uint256 liquidatable = remainingAmount;
+        if (liquidatable > userTrancheFunds) liquidatable = userTrancheFunds;
+        if (liquidatable > trancheAvailable) liquidatable = trancheAvailable;
 
         // Update user position
         if (tranche == TrancheType.Junior) {
@@ -545,8 +565,10 @@ contract TrancheVault is ERC20, Ownable, ReentrancyGuard, Pausable {
     }
 
     function _massUpdateHealthFactors() internal {
-        // This is a simplified version - in production, you'd use a more efficient mechanism
-        // like event-based updates or batch processing
+        // Simplified: recompute health factors for all known depositors
+        for (uint256 i = 0; i < depositors.length; i++) {
+            _updateHealthFactor(depositors[i]);
+        }
     }
 
     function checkLiquidationEligibility(address user) external view returns (
