@@ -124,6 +124,12 @@ venv.bak/
 *.out
 go.work
 
+# Service binaries
+services/*/ens-resolver
+services/*/oracle-service
+services/*/payment-processor
+services/*/storage-worker
+
 # Rust
 target/
 **/*.rs.bk
