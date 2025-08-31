@@ -124,7 +124,7 @@ contract ConfidentialPayments is ReentrancyGuard, AccessControl, Pausable {
         address recipient,
         address token,
         einput encryptedAmount,
-        bytes memory inputProof,
+        bytes calldata inputProof,
         string calldata metadataURI,
         bool makePrivate
     ) external payable nonReentrant whenNotPaused returns (uint256) {
@@ -133,8 +133,13 @@ contract ConfidentialPayments is ReentrancyGuard, AccessControl, Pausable {
         }
 
         euint256 amount = TFHE.asEuint256(encryptedAmount, inputProof);
+        TFHE.allowThis(amount);
+        
         euint256 fee = TFHE.div(TFHE.mul(amount, TFHE.asEuint256(FEE_BASIS_POINTS)), 10000);
+        TFHE.allowThis(fee);
+        
         euint256 totalAmount = TFHE.add(amount, fee);
+        TFHE.allowThis(totalAmount);
 
         _paymentCounter++;
         uint256 paymentId = _paymentCounter;
@@ -146,6 +151,12 @@ contract ConfidentialPayments is ReentrancyGuard, AccessControl, Pausable {
         payment.token = token;
         payment.encryptedAmount = amount;
         payment.encryptedFee = fee;
+        
+        // Set ACL permissions for reencryption
+        TFHE.allow(amount, msg.sender);
+        TFHE.allow(amount, recipient);
+        TFHE.allow(fee, msg.sender);
+        TFHE.allow(fee, recipient);
         payment.status = PaymentStatus.Pending;
         payment.createdAt = block.timestamp;
         payment.metadataURI = metadataURI;
@@ -349,7 +360,7 @@ contract ConfidentialPayments is ReentrancyGuard, AccessControl, Pausable {
         emit EmergencyDisclosureToggled(msg.sender, emergencyDisclosureEnabled[msg.sender]);
     }
 
-    function getEncryptedBalance(address user) external view returns (bytes memory) {
+    function getEncryptedBalance(address user) external view returns (euint256) {
         require(
             msg.sender == user || 
             hasRole(COMPLIANCE_ROLE, msg.sender) ||
@@ -357,46 +368,58 @@ contract ConfidentialPayments is ReentrancyGuard, AccessControl, Pausable {
             "Unauthorized balance access"
         );
         
-        // In production, this would use proper reencryption
-        return "";
+        // Return encrypted handle for client-side reencryption
+        return encryptedBalances[user];
     }
 
     function addToEncryptedBalance(
         address user,
         einput encryptedValue,
-        bytes memory inputProof
+        bytes calldata inputProof
     ) external {
         require(hasRole(DEFAULT_ADMIN_ROLE, msg.sender), "Admin only");
         
         euint256 value = TFHE.asEuint256(encryptedValue, inputProof);
+        TFHE.allowThis(value);
+        
         encryptedBalances[user] = TFHE.add(encryptedBalances[user], value);
+        TFHE.allowThis(encryptedBalances[user]);
+        TFHE.allow(encryptedBalances[user], user);
         
         emit PrivateBalanceUpdated(user, address(0));
     }
 
     function compareEncryptedAmounts(
         einput encryptedAmount1,
-        bytes memory inputProof1,
+        bytes calldata inputProof1,
         einput encryptedAmount2,
-        bytes memory inputProof2
-    ) external returns (bytes memory) {
+        bytes calldata inputProof2
+    ) external returns (ebool) {
         euint256 amount1 = TFHE.asEuint256(encryptedAmount1, inputProof1);
         euint256 amount2 = TFHE.asEuint256(encryptedAmount2, inputProof2);
         ebool isGreater = TFHE.gt(amount1, amount2);
-        // In production, this would use proper reencryption
-        return "";
+        
+        // Set ACL permissions for client-side reencryption
+        TFHE.allowThis(isGreater);
+        TFHE.allow(isGreater, msg.sender);
+        
+        return isGreater;
     }
 
     function verifyEncryptedThreshold(
         einput encryptedAmount,
-        bytes memory inputProof,
+        bytes calldata inputProof,
         uint256 threshold
-    ) external returns (bytes memory) {
+    ) external returns (ebool) {
         euint256 amount = TFHE.asEuint256(encryptedAmount, inputProof);
         euint256 thresholdEncrypted = TFHE.asEuint256(threshold);
         ebool meetsThreshold = TFHE.ge(amount, thresholdEncrypted);
-        // In production, this would use proper reencryption
-        return "";
+        
+        // Set ACL permissions for client-side reencryption
+        TFHE.allowThis(meetsThreshold);
+        TFHE.allow(meetsThreshold, msg.sender);
+        
+        return meetsThreshold;
     }
 
     function _handleEncryptedETHTransfer(
@@ -459,9 +482,8 @@ contract ConfidentialPayments is ReentrancyGuard, AccessControl, Pausable {
     }
 
     function getEncryptedPaymentAmount(
-        uint256 paymentId,
-        bytes32 publicKey
-    ) external view returns (bytes memory) {
+        uint256 paymentId
+    ) external view returns (euint256) {
         ConfidentialPayment storage payment = confidentialPayments[paymentId];
         
         if (payment.id == 0) {
@@ -477,8 +499,8 @@ contract ConfidentialPayments is ReentrancyGuard, AccessControl, Pausable {
             "Unauthorized access"
         );
 
-        // In production, this would use proper reencryption
-        return "";
+        // Return encrypted handle for client-side reencryption
+        return payment.encryptedAmount;
     }
 
     function pause() external onlyRole(DEFAULT_ADMIN_ROLE) {
