@@ -3,13 +3,13 @@ package main
 import (
 	"crypto/rand"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
-
-	"github.com/gin-gonic/gin"
 )
 
 type RandomRequest struct {
@@ -33,14 +33,20 @@ func initializeRNG() {
 	log.Println("RNG service initialized")
 }
 
-func handleRequestRandom(c *gin.Context) {
+func handleRequestRandom(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "POST" {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		json.NewEncoder(w).Encode(map[string]interface{}{"error": "Method not allowed"})
+		return
+	}
+
 	var request struct {
 		Requester string `json:"requester,omitempty"`
 	}
 	
-	if err := c.ShouldBindJSON(&request); err != nil {
-		// Use sender from context if not provided
-		request.Requester = c.GetString("sender")
+	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+		// Ignore decode error, use anonymous as default
 	}
 	
 	if request.Requester == "" {
@@ -63,7 +69,9 @@ func handleRequestRandom(c *gin.Context) {
 	
 	log.Printf("Random number requested: %s by %s", requestID, request.Requester)
 	
-	c.JSON(http.StatusOK, gin.H{
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]interface{}{
 		"request_id": requestID,
 		"status":     "pending",
 		"timestamp":  randomReq.Timestamp,
@@ -71,19 +79,23 @@ func handleRequestRandom(c *gin.Context) {
 	})
 }
 
-func handleRandomStatus(c *gin.Context) {
-	requestID := c.Param("requestId")
+func handleRandomStatus(w http.ResponseWriter, r *http.Request) {
+	// Extract requestId from URL path
+	path := strings.TrimPrefix(r.URL.Path, "/api/random/status/")
+	requestID := strings.TrimSuffix(path, "/")
 	
 	randomMutex.RLock()
 	request, exists := randomRequests[requestID]
 	randomMutex.RUnlock()
 	
 	if !exists {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Request not found"})
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusNotFound)
+		json.NewEncoder(w).Encode(map[string]interface{}{"error": "Request not found"})
 		return
 	}
 	
-	response := gin.H{
+	response := map[string]interface{}{
 		"request_id": request.ID,
 		"status":     request.Status,
 		"timestamp":  request.Timestamp,
@@ -103,17 +115,35 @@ func handleRandomStatus(c *gin.Context) {
 		response["estimated_seconds_remaining"] = remaining
 	}
 	
-	c.JSON(http.StatusOK, response)
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(response)
 }
 
-func handleFulfillRandom(c *gin.Context) {
+func handleFulfillRandom(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "POST" {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		json.NewEncoder(w).Encode(map[string]interface{}{"error": "Method not allowed"})
+		return
+	}
+
 	var request struct {
-		RequestID string `json:"request_id" binding:"required"`
+		RequestID string `json:"request_id"`
 		Seed      string `json:"seed,omitempty"`
 	}
 	
-	if err := c.ShouldBindJSON(&request); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
+	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]interface{}{"error": "Invalid request format"})
+		return
+	}
+
+	if request.RequestID == "" {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]interface{}{"error": "Request ID is required"})
 		return
 	}
 	
@@ -122,18 +152,24 @@ func handleFulfillRandom(c *gin.Context) {
 	
 	randomReq, exists := randomRequests[request.RequestID]
 	if !exists {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Request not found"})
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusNotFound)
+		json.NewEncoder(w).Encode(map[string]interface{}{"error": "Request not found"})
 		return
 	}
 	
 	if randomReq.Status == "fulfilled" {
-		c.JSON(http.StatusConflict, gin.H{"error": "Request already fulfilled"})
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusConflict)
+		json.NewEncoder(w).Encode(map[string]interface{}{"error": "Request already fulfilled"})
 		return
 	}
 	
 	// Check if enough time has passed (minimum 1 minute delay for security)
 	if time.Now().Unix()-randomReq.Timestamp < 60 {
-		c.JSON(http.StatusTooEarly, gin.H{
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusTooEarly)
+		json.NewEncoder(w).Encode(map[string]interface{}{
 			"error": "Fulfillment too early",
 			"minimum_wait_seconds": 60,
 		})
@@ -148,7 +184,9 @@ func handleFulfillRandom(c *gin.Context) {
 		// Generate cryptographically secure random seed
 		randomBytes := make([]byte, 32)
 		if _, err := rand.Read(randomBytes); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate random seed"})
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusInternalServerError)
+			json.NewEncoder(w).Encode(map[string]interface{}{"error": "Failed to generate random seed"})
 			return
 		}
 		seed = hex.EncodeToString(randomBytes)
@@ -160,7 +198,9 @@ func handleFulfillRandom(c *gin.Context) {
 	
 	log.Printf("Random number fulfilled: %s with seed %s", request.RequestID, seed[:16]+"...")
 	
-	c.JSON(http.StatusOK, gin.H{
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]interface{}{
 		"request_id":   request.RequestID,
 		"status":       "fulfilled",
 		"seed":         seed,
@@ -241,25 +281,59 @@ func selectRandomWinners(participants []string, numWinners int, seed string) ([]
 }
 
 // API endpoint for grant selection
-func handleSelectWinners(c *gin.Context) {
+func handleSelectWinners(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "POST" {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		json.NewEncoder(w).Encode(map[string]interface{}{"error": "Method not allowed"})
+		return
+	}
+
 	var request struct {
-		Participants []string `json:"participants" binding:"required"`
-		NumWinners   int      `json:"num_winners" binding:"required,min=1"`
-		Seed         string   `json:"seed" binding:"required"`
+		Participants []string `json:"participants"`
+		NumWinners   int      `json:"num_winners"`
+		Seed         string   `json:"seed"`
 	}
 	
-	if err := c.ShouldBindJSON(&request); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
+	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]interface{}{"error": "Invalid request format"})
+		return
+	}
+
+	if len(request.Participants) == 0 {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]interface{}{"error": "Participants are required"})
+		return
+	}
+
+	if request.NumWinners <= 0 {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]interface{}{"error": "Number of winners must be greater than 0"})
+		return
+	}
+
+	if request.Seed == "" {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]interface{}{"error": "Seed is required"})
 		return
 	}
 	
 	winners, err := selectRandomWinners(request.Participants, request.NumWinners, request.Seed)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]interface{}{"error": err.Error()})
 		return
 	}
 	
-	c.JSON(http.StatusOK, gin.H{
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]interface{}{
 		"winners":         winners,
 		"total_participants": len(request.Participants),
 		"num_winners":     len(winners),
