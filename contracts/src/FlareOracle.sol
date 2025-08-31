@@ -102,7 +102,7 @@ contract FlareOracle is IOracle, Ownable, ReentrancyGuard {
         randomRequestCounter++;
         requestId = keccak256(abi.encodePacked(
             block.timestamp,
-            block.difficulty,
+            block.prevrandao,
             randomRequestCounter,
             msg.sender
         ));
