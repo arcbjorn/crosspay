@@ -1,0 +1,14 @@
+{
+  "name": "@crosspay/mini",
+  "version": "0.1.0",
+  "description": "CrossPay Protocol Base MiniKit mini app",
+  "main": "index.html",
+  "scripts": {
+    "dev": "python3 -m http.server 8080",
+    "build": "cp index.html dist/index.html",
+    "deploy": "echo 'Deploy to Base MiniKit store'"
+  },
+  "keywords": ["base", "minikit", "payments", "usdc", "viral"],
+  "author": "",
+  "license": "MIT"
+}

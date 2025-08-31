@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CrossPay Mini</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .header {
+            padding: 1rem;
+            text-align: center;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        .logo {
+            font-size: 1.5rem;
+            font-weight: bold;
+            margin-bottom: 0.5rem;
+        }
+        
+        .subtitle {
+            opacity: 0.8;
+            font-size: 0.875rem;
+        }
+        
+        .main {
+            flex: 1;
+            padding: 1rem;
+            max-width: 400px;
+            margin: 0 auto;
+            width: 100%;
+        }
+        
+        .stats {
+            background: rgba(255,255,255,0.1);
+            border-radius: 12px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            text-align: center;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+        
+        .stat-item {
+            text-align: center;
+        }
+        
+        .stat-value {
+            font-size: 1.5rem;
+            font-weight: bold;
+            margin-bottom: 0.25rem;
+        }
+        
+        .stat-label {
+            opacity: 0.7;
+            font-size: 0.75rem;
+        }
+        
+        .payment-form {
+            background: rgba(255,255,255,0.1);
+            border-radius: 12px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+        
+        .form-group {
+            margin-bottom: 1rem;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-size: 0.875rem;
+            font-weight: 500;
+        }
+        
+        input, select {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid rgba(255,255,255,0.3);
+            border-radius: 8px;
+            background: rgba(255,255,255,0.1);
+            color: white;
+            font-size: 1rem;
+        }
+        
+        input::placeholder {
+            color: rgba(255,255,255,0.6);
+        }
+        
+        .btn {
+            background: #00d4aa;
+            border: none;
+            border-radius: 8px;
+            padding: 0.75rem 1.5rem;
+            color: white;
+            font-weight: 600;
+            cursor: pointer;
+            width: 100%;
+            font-size: 1rem;
+            margin-bottom: 0.5rem;
+            transition: background-color 0.2s;
+        }
+        
+        .btn:hover {
+            background: #00b892;
+        }
+        
+        .btn:disabled {
+            background: rgba(255,255,255,0.3);
+            cursor: not-allowed;
+        }
+        
+        .btn-outline {
+            background: transparent;
+            border: 1px solid rgba(255,255,255,0.3);
+        }
+        
+        .btn-outline:hover {
+            background: rgba(255,255,255,0.1);
+        }
+        
+        .qr-section {
+            background: rgba(255,255,255,0.1);
+            border-radius: 12px;
+            padding: 1rem;
+            text-align: center;
+            margin-bottom: 1rem;
+        }
+        
+        .qr-code {
+            width: 200px;
+            height: 200px;
+            background: white;
+            border-radius: 8px;
+            margin: 1rem auto;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #333;
+            font-size: 0.875rem;
+        }
+        
+        .viral-features {
+            background: rgba(255,255,255,0.1);
+            border-radius: 12px;
+            padding: 1rem;
+        }
+        
+        .feature-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.5rem;
+            margin-top: 1rem;
+        }
+        
+        .feature-item {
+            text-align: center;
+            padding: 0.5rem;
+        }
+        
+        .feature-emoji {
+            font-size: 1.5rem;
+            margin-bottom: 0.25rem;
+        }
+        
+        .feature-text {
+            font-size: 0.75rem;
+        }
+        
+        .toast {
+            position: fixed;
+            top: 1rem;
+            right: 1rem;
+            background: #00d4aa;
+            color: white;
+            padding: 1rem;
+            border-radius: 8px;
+            transform: translateX(100%);
+            transition: transform 0.3s;
+        }
+        
+        .toast.show {
+            transform: translateX(0);
+        }
+        
+        .hidden {
+            display: none;
+        }
+        
+        .loading {
+            opacity: 0.7;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="logo">CrossPay Mini</div>
+        <div class="subtitle">Quick USDC payments on Base</div>
+    </div>
+    
+    <div class="main">
+        <!-- User Stats -->
+        <div class="stats">
+            <div>💰 Your Payment Streak</div>
+            <div class="stats-grid">
+                <div class="stat-item">
+                    <div class="stat-value" id="streakCount">7</div>
+                    <div class="stat-label">Days</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="totalPayments">23</div>
+                    <div class="stat-label">Payments</div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Quick Pay Form -->
+        <div class="payment-form">
+            <h3 style="margin-bottom: 1rem;">💸 Quick Pay</h3>
+            <form id="paymentForm">
+                <div class="form-group">
+                    <label for="recipient">To:</label>
+                    <input 
+                        type="text" 
+                        id="recipient" 
+                        placeholder="0x... or username.base.eth"
+                        required
+                    >
+                </div>
+                
+                <div class="form-group">
+                    <label for="amount">Amount (USDC):</label>
+                    <input 
+                        type="number" 
+                        id="amount" 
+                        placeholder="10.00"
+                        step="0.01"
+                        min="0.01"
+                        required
+                    >
+                </div>
+                
+                <button type="submit" class="btn" id="payBtn">
+                    Send Payment
+                </button>
+            </form>
+        </div>
+        
+        <!-- QR Code Generator -->
+        <div class="qr-section">
+            <h3 style="margin-bottom: 1rem;">📱 Request Payment</h3>
+            <button class="btn btn-outline" onclick="generateQR()">
+                Generate Payment QR
+            </button>
+            <div class="qr-code hidden" id="qrCode">
+                QR Code will appear here
+            </div>
+        </div>
+        
+        <!-- Viral Features -->
+        <div class="viral-features">
+            <h3 style="margin-bottom: 1rem;">🚀 Your Achievements</h3>
+            <div class="feature-grid">
+                <div class="feature-item">
+                    <div class="feature-emoji">🔥</div>
+                    <div class="feature-text">7 Day Streak</div>
+                </div>
+                <div class="feature-item">
+                    <div class="feature-emoji">💎</div>
+                    <div class="feature-text">VIP Status</div>
+                </div>
+                <div class="feature-item">
+                    <div class="feature-emoji">🎯</div>
+                    <div class="feature-text">23 Payments</div>
+                </div>
+                <div class="feature-item">
+                    <div class="feature-emoji">🌟</div>
+                    <div class="feature-text">Top 10%</div>
+                </div>
+            </div>
+            
+            <button class="btn" style="margin-top: 1rem;" onclick="shareApp()">
+                🔗 Share & Earn Rewards
+            </button>
+        </div>
+    </div>
+    
+    <!-- Toast Notification -->
+    <div class="toast" id="toast"></div>
+    
+    <script>
+        // Mock data for demo
+        let paymentStreak = parseInt(localStorage.getItem('paymentStreak') || '7');
+        let totalPayments = parseInt(localStorage.getItem('totalPayments') || '23');
+        let referralCode = localStorage.getItem('referralCode') || generateReferralCode();
+        
+        // Update stats on load
+        document.getElementById('streakCount').textContent = paymentStreak;
+        document.getElementById('totalPayments').textContent = totalPayments;
+        
+        // Generate referral code
+        function generateReferralCode() {
+            const code = 'CROSS' + Math.random().toString(36).substr(2, 6).toUpperCase();
+            localStorage.setItem('referralCode', code);
+            return code;
+        }
+        
+        // Toast notification system
+        function showToast(message, type = 'success') {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.className = `toast show ${type}`;
+            
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 3000);
+        }
+        
+        // Payment form handler
+        document.getElementById('paymentForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const payBtn = document.getElementById('payBtn');
+            const recipient = document.getElementById('recipient').value;
+            const amount = document.getElementById('amount').value;
+            
+            if (!recipient || !amount) {
+                showToast('Please fill all fields', 'error');
+                return;
+            }
+            
+            payBtn.textContent = 'Processing...';
+            payBtn.disabled = true;
+            payBtn.classList.add('loading');
+            
+            try {
+                // Mock payment processing
+                await new Promise(resolve => setTimeout(resolve, 2000));
+                
+                // Update stats
+                totalPayments++;
+                paymentStreak++;
+                
+                localStorage.setItem('totalPayments', totalPayments.toString());
+                localStorage.setItem('paymentStreak', paymentStreak.toString());
+                
+                document.getElementById('totalPayments').textContent = totalPayments;
+                document.getElementById('streakCount').textContent = paymentStreak;
+                
+                // Reset form
+                document.getElementById('paymentForm').reset();
+                
+                showToast(`💸 Sent $${amount} USDC successfully!`);
+                
+            } catch (error) {
+                showToast('Payment failed. Please try again.', 'error');
+            } finally {
+                payBtn.textContent = 'Send Payment';
+                payBtn.disabled = false;
+                payBtn.classList.remove('loading');
+            }
+        });
+        
+        // QR Code generation
+        function generateQR() {
+            const qrCode = document.getElementById('qrCode');
+            qrCode.classList.remove('hidden');
+            qrCode.innerHTML = `
+                <div style="color: #333; padding: 1rem;">
+                    <div style="font-weight: bold;">CrossPay Request</div>
+                    <div style="font-size: 0.75rem; margin-top: 0.5rem;">
+                        Scan to pay via CrossPay
+                    </div>
+                    <div style="font-size: 0.75rem; margin-top: 0.5rem;">
+                        Code: ${referralCode}
+                    </div>
+                </div>
+            `;
+            showToast('QR code generated! 📱');
+        }
+        
+        // Share functionality
+        function shareApp() {
+            const shareUrl = `https://crosspay.app/mini?ref=${referralCode}`;
+            
+            if (navigator.share) {
+                navigator.share({
+                    title: 'CrossPay Mini',
+                    text: 'Check out this awesome payment app! Use my referral code for bonuses.',
+                    url: shareUrl
+                });
+            } else {
+                // Fallback: copy to clipboard
+                navigator.clipboard.writeText(shareUrl).then(() => {
+                    showToast('Share link copied to clipboard! 🔗');
+                });
+            }
+        }
+        
+        // Camera integration placeholder
+        function openCamera() {
+            showToast('📸 Camera integration coming soon!');
+        }
+        
+        // Check for referral code in URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const refCode = urlParams.get('ref');
+        if (refCode && refCode !== referralCode) {
+            showToast(`🎉 Welcome! You were referred by ${refCode}`);
+        }
+        
+        // Simulate real-time updates
+        setInterval(() => {
+            // Random chance to increment streak (viral engagement simulation)
+            if (Math.random() < 0.1) {
+                const achievements = ['🏆 New achievement unlocked!', '⭐ Bonus points earned!', '🔥 Streak bonus!'];
+                const randomAchievement = achievements[Math.floor(Math.random() * achievements.length)];
+                showToast(randomAchievement);
+            }
+        }, 30000);
+        
+        // Mobile optimizations
+        if ('ontouchstart' in window) {
+            document.body.style.webkitUserSelect = 'none';
+            document.body.style.webkitTouchCallout = 'none';
+        }
+        
+        console.log('CrossPay Mini loaded successfully! 🚀');
+        console.log('Your referral code:', referralCode);
+    </script>
+</body>
+</html>
