@@ -1,11 +1,11 @@
 package main
 
 import (
+	"encoding/json"
 	"log"
 	"net/http"
+	"strings"
 	"time"
-
-	"github.com/gin-gonic/gin"
 )
 
 type CacheStats struct {
@@ -32,7 +32,12 @@ func initCache() {
 	lastEviction = time.Now().Unix()
 }
 
-func handleCacheStats(c *gin.Context) {
+func handleCacheStats(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	
 	cacheMutex.RLock()
 	forwardCount := len(ensCache)
 	reverseCount := len(reverseCache)
@@ -57,10 +62,16 @@ func handleCacheStats(c *gin.Context) {
 		EvictedEntries:  evictedEntries,
 	}
 	
-	c.JSON(http.StatusOK, stats)
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(stats)
 }
 
-func handleClearCache(c *gin.Context) {
+func handleClearCache(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodDelete {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	
 	cacheMutex.Lock()
 	
 	forwardCount := len(ensCache)
@@ -82,9 +93,10 @@ func handleClearCache(c *gin.Context) {
 	
 	log.Printf("Cache cleared: %d total entries removed", totalCleared)
 	
-	c.JSON(http.StatusOK, gin.H{
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
 		"message": "Cache cleared successfully",
-		"cleared_entries": gin.H{
+		"cleared_entries": map[string]interface{}{
 			"forward":  forwardCount,
 			"reverse":  reverseCount,
 			"subnames": subnameCount,
@@ -94,10 +106,18 @@ func handleClearCache(c *gin.Context) {
 	})
 }
 
-func handleClearCacheEntry(c *gin.Context) {
-	key := c.Param("key")
+func handleClearCacheEntry(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodDelete {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	
+	path := strings.TrimPrefix(r.URL.Path, "/api/cache/entry/")
+	key := path
 	if key == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Cache key required"})
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": "Cache key required"})
 		return
 	}
 	
@@ -126,13 +146,16 @@ func handleClearCacheEntry(c *gin.Context) {
 	
 	if removed > 0 {
 		log.Printf("Cache entry removed: %s (%d entries)", key, removed)
-		c.JSON(http.StatusOK, gin.H{
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
 			"message": "Cache entry removed",
 			"key":     key,
 			"removed": removed,
 		})
 	} else {
-		c.JSON(http.StatusNotFound, gin.H{
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusNotFound)
+		json.NewEncoder(w).Encode(map[string]string{
 			"error":   "Cache entry not found",
 			"key":     key,
 		})
