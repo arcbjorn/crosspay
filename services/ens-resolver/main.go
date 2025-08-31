@@ -2,22 +2,22 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"log"
 	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
-
-	"github.com/gin-gonic/gin"
 )
 
 func main() {
-	r := gin.Default()
+	mux := http.NewServeMux()
 	
 	// Health check endpoint
-	r.GET("/health", func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{
+	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
 			"status": "healthy",
 			"service": "ens-resolver",
 			"timestamp": time.Now().Unix(),
@@ -25,36 +25,27 @@ func main() {
 	})
 
 	// ENS resolution endpoints
-	ensGroup := r.Group("/api/ens")
-	{
-		ensGroup.GET("/resolve/:name", handleResolveName)
-		ensGroup.GET("/reverse/:address", handleReverseResolve)
-		ensGroup.POST("/resolve/batch", handleBatchResolve)
-		ensGroup.GET("/avatar/:name", handleGetAvatar)
-		ensGroup.GET("/text/:name/:key", handleGetTextRecord)
-		ensGroup.GET("/search", handleSearchNames)
-	}
+	mux.HandleFunc("/api/ens/resolve/", handleResolveName)
+	mux.HandleFunc("/api/ens/reverse/", handleReverseResolve)
+	mux.HandleFunc("/api/ens/resolve/batch", handleBatchResolve)
+	mux.HandleFunc("/api/ens/avatar/", handleGetAvatar)
+	mux.HandleFunc("/api/ens/text/", handleGetTextRecord)
+	mux.HandleFunc("/api/ens/search", handleSearchNames)
 
 	// Subname registry endpoints
-	subnameGroup := r.Group("/api/subnames")
-	{
-		subnameGroup.POST("/register", handleRegisterSubname)
-		subnameGroup.GET("/list/:domain", handleListSubnames)
-		subnameGroup.POST("/bulk", handleBulkRegister)
-		subnameGroup.DELETE("/revoke/:subname", handleRevokeSubname)
-	}
+	mux.HandleFunc("/api/subnames/register", handleRegisterSubname)
+	mux.HandleFunc("/api/subnames/list/", handleListSubnames)
+	mux.HandleFunc("/api/subnames/bulk", handleBulkRegister)
+	mux.HandleFunc("/api/subnames/revoke/", handleRevokeSubname)
 
 	// Cache management endpoints
-	cacheGroup := r.Group("/api/cache")
-	{
-		cacheGroup.GET("/stats", handleCacheStats)
-		cacheGroup.DELETE("/clear", handleClearCache)
-		cacheGroup.DELETE("/entry/:key", handleClearCacheEntry)
-	}
+	mux.HandleFunc("/api/cache/stats", handleCacheStats)
+	mux.HandleFunc("/api/cache/clear", handleClearCache)
+	mux.HandleFunc("/api/cache/entry/", handleClearCacheEntry)
 
 	srv := &http.Server{
 		Addr:    ":8082",
-		Handler: r,
+		Handler: mux,
 	}
 
 	// Initialize ENS resolver
