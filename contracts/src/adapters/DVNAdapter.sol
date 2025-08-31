@@ -109,7 +109,7 @@ contract DVNAdapter is Ownable, Pausable {
         uint32 destinationChain,
         address destinationRecipient,
         bytes calldata options
-    ) external payable whenNotPaused returns (bytes32 messageId) {
+    ) external payable returns (bytes32 messageId) {
         require(!paused(), "Pausable: paused");
         if (!supportedChains[destinationChain]) {
             revert UnsupportedChain(destinationChain);
@@ -224,14 +224,12 @@ contract DVNAdapter is Ownable, Pausable {
             uint256 timestamp
         ) = abi.decode(message, (uint256, address, address, address, uint256, string, uint256));
         
-        // Create local payment record
-        uint256 localPaymentId = paymentCore.createPayment(
+        // Create local payment record via trusted adapter path
+        uint256 localPaymentId = paymentCore.createPaymentFromAdapter(
             recipient,
             token,
             amount,
-            metadataURI,
-            "", // senderENS - would be resolved separately
-            ""  // recipientENS
+            metadataURI
         );
         
         // Mark as cross-chain verified
