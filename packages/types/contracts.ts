@@ -13,7 +13,7 @@ export interface Payment {
   receiptCID: string;
   senderENS: string;
   recipientENS: string;
-  oraclePrice: bigint;
+  oraclePrice: string;
   randomSeed: string;
 }
 
