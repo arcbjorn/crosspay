@@ -6,7 +6,8 @@
     "build": "forge build",
     "test": "forge test",
     "deploy:lisk": "forge script script/Deploy.s.sol:Deploy --rpc-url lisk-sepolia --broadcast --verify",
-    "deploy:base": "forge script script/Deploy.s.sol:Deploy --rpc-url base-sepolia --broadcast --verify"
+    "deploy:base": "forge script script/Deploy.s.sol:Deploy --rpc-url base-sepolia --broadcast --verify",
+    "generate-abis": "forge build && node scripts/extract-abis.js"
   },
   "keywords": ["solidity", "smart-contracts", "payments"],
   "author": "",
