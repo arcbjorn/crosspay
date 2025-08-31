@@ -302,7 +302,7 @@ contract PaymentCoreTest is Test {
         assertEq(senderPayments[1], 2);
     }
     
-    function testFeeCalculation() public view {
+    function testFeeCalculation() public {
         // Test fee calculation for different amounts
         uint256 amount1 = 1 ether;
         uint256 expectedFee1 = (amount1 * 10) / 10000; // 0.1%
