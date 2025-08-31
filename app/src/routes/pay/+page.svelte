@@ -4,7 +4,11 @@
   import { goto } from '$app/navigation';
   import { PaymentService } from '$lib/services/payment';
   import { ensService } from '$lib/services/ens';
+  import { ERC20Service } from '$lib/services/erc20';
+  import { isNativeToken, getSupportedTokens } from '$lib/config/tokens';
   import PriceDisplay from '$lib/components/PriceDisplay.svelte';
+  import TokenSelector from '$lib/components/TokenSelector.svelte';
+  import ApprovalFlow from '$lib/components/ApprovalFlow.svelte';
   import { successToast, errorToast, warningToast } from '$lib/stores/toast';
   import type { Address } from 'viem';
   
@@ -13,7 +17,7 @@
   
   let recipient = '';
   let amount = '';
-  let token = '0x0000000000000000000000000000000000000000'; // ETH
+  let selectedToken = '0x0000000000000000000000000000000000000000'; // ETH
   let metadataURI = '';
   let selectedChain = chain.id;
   let senderENS = '';
@@ -25,11 +29,24 @@
   let resolvedAddress = '';
   let isResolvingENS = false;
   let senderENSFromWallet = '';
+  let showApprovalFlow = false;
+  let approvalRequired = false;
+  let erc20Service: ERC20Service;
+  let paymentService: PaymentService;
   
   $: fee = amount ? (parseFloat(amount) * 0.001).toFixed(4) : '0';
   $: total = amount ? (parseFloat(amount) + parseFloat(fee)).toFixed(4) : '0';
   $: selectedChainConfig = SUPPORTED_CHAINS[selectedChain];
   $: nativeSymbol = selectedChainConfig?.nativeCurrency.symbol || 'ETH';
+  $: supportedTokens = getSupportedTokens(selectedChain);
+  $: selectedTokenInfo = supportedTokens.find(t => t.address === selectedToken);
+  $: isNative = isNativeToken(selectedToken as Address);
+  
+  // Initialize services when chain changes
+  $: if (selectedChain) {
+    erc20Service = new ERC20Service(selectedChain);
+    paymentService = new PaymentService(selectedChain);
+  }
   
   const handleSubmit = async () => {
     if (!wallet.isConnected) {
@@ -74,13 +91,29 @@
         setChain(selectedChain);
       }
       
-      // Create payment service for selected chain
-      const paymentService = new PaymentService(selectedChain);
+      // Check if approval is needed for ERC20 tokens
+      if (!isNative && wallet.address && paymentService && erc20Service) {
+        const spenderAddress = paymentService.getContractAddress();
+        const parsedAmount = erc20Service.parseTokenAmount(amount, selectedTokenInfo?.decimals || 18);
+        const approvalStatus = await erc20Service.getApprovalStatus(
+          selectedToken as Address,
+          wallet.address as Address,
+          spenderAddress,
+          parsedAmount
+        );
+        
+        if (approvalStatus.needsApproval) {
+          approvalRequired = true;
+          showApprovalFlow = true;
+          isSubmitting = false;
+          return;
+        }
+      }
       
       // Create payment on blockchain  
       const result = await paymentService.createPayment(
         finalRecipient as Address,
-        token as Address,
+        selectedToken as Address,
         amount,
         metadataURI || '',
         wallet.address as Address,
@@ -96,7 +129,7 @@
         paymentId: result.paymentId.toString(),
         recipient,
         amount,
-        token,
+        token: selectedToken,
         metadataURI,
         chain: selectedChain
       });
@@ -174,6 +207,29 @@
   $: if (wallet.isConnected && wallet.address) {
     lookupSenderENS();
   }
+  
+  // Handle approval completion
+  function handleApprovalCompleted(event: CustomEvent<{ hash: string }>) {
+    showApprovalFlow = false;
+    approvalRequired = false;
+    successToast('Token approved! You can now proceed with payment.');
+    // Automatically retry payment submission
+    handleSubmit();
+  }
+  
+  // Handle approval cancellation
+  function handleApprovalCancelled() {
+    showApprovalFlow = false;
+    approvalRequired = false;
+    warningToast('Token approval cancelled');
+  }
+  
+  // Handle approval error
+  function handleApprovalError(event: CustomEvent<{ error: Error }>) {
+    showApprovalFlow = false;
+    approvalRequired = false;
+    errorToast(`Approval failed: ${event.detail.error.message}`);
+  }
 </script>
 
 <svelte:head>
@@ -249,20 +305,11 @@
           </div>
           
           <!-- Token Selection -->
-          <div class="form-control">
-            <label class="label" for="token">
-              <span class="label-text">Token</span>
-            </label>
-            <select 
-              id="token"
-              class="select select-bordered w-full"
-              bind:value={token}
-            >
-              <option value="0x0000000000000000000000000000000000000000">{nativeSymbol} (Native)</option>
-              <!-- Mock USDC addresses would go here -->
-              <option value="0xa0b86991c31cc0c24b383c0d36b8ef073b3b2c0f8">USDC (Mock)</option>
-            </select>
-          </div>
+          <TokenSelector 
+            bind:selectedToken={selectedToken}
+            chainId={selectedChain}
+            disabled={isSubmitting}
+          />
           
           <!-- Amount -->
           <div class="form-control">
@@ -280,7 +327,11 @@
               required
             />
             <label class="label">
-              <span class="label-text-alt">Available: {wallet.balance ? (Number(wallet.balance) / 10**18).toFixed(4) : '0'} {nativeSymbol}</span>
+              <span class="label-text-alt">
+                {#if selectedTokenInfo}
+                  Enter amount in {selectedTokenInfo.symbol}
+                {/if}
+              </span>
             </label>
           </div>
           
@@ -349,16 +400,16 @@
             <div class="alert">
               <div class="flex justify-between w-full">
                 <span>Payment Amount:</span>
-                <span class="font-mono">{amount} {nativeSymbol}</span>
+                <span class="font-mono">{amount} {selectedTokenInfo?.symbol || nativeSymbol}</span>
               </div>
               <div class="flex justify-between w-full">
                 <span>Protocol Fee (0.1%):</span>
-                <span class="font-mono">{fee} {nativeSymbol}</span>
+                <span class="font-mono">{fee} {selectedTokenInfo?.symbol || nativeSymbol}</span>
               </div>
               <div class="divider my-2"></div>
               <div class="flex justify-between w-full font-bold">
                 <span>Total:</span>
-                <span class="font-mono">{total} {nativeSymbol}</span>
+                <span class="font-mono">{total} {selectedTokenInfo?.symbol || nativeSymbol}</span>
               </div>
             </div>
           {/if}
@@ -398,3 +449,17 @@
     </div>
   </div>
 </div>
+
+<!-- Token Approval Flow -->
+{#if showApprovalFlow && selectedTokenInfo && wallet.address && paymentService && erc20Service}
+  <ApprovalFlow
+    chainId={selectedChain}
+    tokenAddress={selectedToken as Address}
+    spenderAddress={paymentService.getContractAddress()}
+    requiredAmount={erc20Service.parseTokenAmount(amount, selectedTokenInfo.decimals)}
+    bind:show={showApprovalFlow}
+    on:approved={handleApprovalCompleted}
+    on:cancelled={handleApprovalCancelled}
+    on:error={handleApprovalError}
+  />
+{/if}
