@@ -1,0 +1,35 @@
+// Auto-generated contract types
+export interface Payment {
+  id: bigint;
+  sender: string;
+  recipient: string;
+  token: string;
+  amount: bigint;
+  fee: bigint;
+  status: 0 | 1 | 2 | 3; // Pending, Completed, Refunded, Cancelled
+  createdAt: bigint;
+  completedAt: bigint;
+  metadataURI: string;
+}
+
+export interface Receipt {
+  paymentId: bigint;
+  metadataCID: string;
+  receiptCID: string;
+  timestamp: bigint;
+  creator: string;
+  isPublic: boolean;
+}
+
+export interface ContractAddresses {
+  PaymentCore: string;
+  ReceiptRegistry: string;
+  ComplianceBase?: string;
+  deployer: string;
+  chainId: string;
+  timestamp: string;
+}
+
+export type PaymentStatus = 'pending' | 'completed' | 'refunded' | 'cancelled';
+
+export type Address = `0x${string}`;
