@@ -59,7 +59,7 @@ library ZKRangeProofs {
         euint256 encryptedValue,
         uint256 minValue,
         uint256 maxValue
-    ) internal view returns (ebool) {
+    ) internal returns (ebool) {
         if (minValue >= maxValue) {
             revert InvalidRange();
         }
@@ -87,7 +87,7 @@ library ZKRangeProofs {
         uint256 minValue,
         uint256 maxValue,
         bytes32 randomness
-    ) internal view returns (RangeProof memory) {
+    ) internal returns (RangeProof memory) {
         if (minValue >= maxValue) {
             revert InvalidRange();
         }
@@ -101,7 +101,7 @@ library ZKRangeProofs {
             commitment,
             randomness,
             block.timestamp,
-            block.difficulty
+            block.prevrandao
         );
 
         return RangeProof({
@@ -121,7 +121,7 @@ library ZKRangeProofs {
     function verifyZKRangeProof(
         RangeProof memory rangeProof,
         euint256 encryptedValue
-    ) internal view returns (bool) {
+    ) internal returns (bool) {
         // Check proof hasn't expired
         if (block.timestamp > rangeProof.timestamp + PROOF_VALIDITY) {
             revert ProofExpired();
@@ -149,7 +149,7 @@ library ZKRangeProofs {
     function batchVerifyRangeProofs(
         RangeProof[] memory rangeProofs,
         euint256[] memory encryptedValues
-    ) internal view returns (bool[] memory results) {
+    ) internal returns (bool[] memory results) {
         require(rangeProofs.length == encryptedValues.length, "Array length mismatch");
         
         results = new bool[](rangeProofs.length);
@@ -167,7 +167,7 @@ library ZKRangeProofs {
     function proveAboveThreshold(
         euint256 encryptedAmount,
         uint256 threshold
-    ) internal view returns (RangeProof memory) {
+    ) internal returns (RangeProof memory) {
         return createZKRangeProof(
             encryptedAmount,
             threshold,
@@ -186,7 +186,7 @@ library ZKRangeProofs {
         euint256 encryptedAmount,
         uint256 baseFee,
         uint256 maxFeeMultiplier
-    ) internal view returns (RangeProof memory) {
+    ) internal returns (RangeProof memory) {
         uint256 maxFee = baseFee * maxFeeMultiplier;
         
         return createZKRangeProof(
@@ -207,7 +207,7 @@ library ZKRangeProofs {
         euint256 encryptedAmount,
         uint256 minPayment,
         uint256 maxPayment
-    ) internal view returns (bool) {
+    ) internal returns (bool) {
         ebool inRange = verifyRange(encryptedAmount, minPayment, maxPayment);
         // In production, this would use async decryption
         return true;
@@ -221,7 +221,7 @@ library ZKRangeProofs {
     function proveSumEqualsTotal(
         euint256[] memory encryptedValues,
         uint256 expectedTotal
-    ) internal view returns (bool) {
+    ) internal returns (bool) {
         if (encryptedValues.length == 0) {
             return expectedTotal == 0;
         }
