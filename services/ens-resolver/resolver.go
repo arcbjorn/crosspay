@@ -1,14 +1,14 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
-
-	"github.com/gin-gonic/gin"
 )
 
 type ENSRecord struct {
@@ -114,11 +114,19 @@ func initENSClient() {
 		len(ensCache), len(reverseCache))
 }
 
-func handleResolveName(c *gin.Context) {
-	name := strings.ToLower(c.Param("name"))
+func handleResolveName(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	
+	path := strings.TrimPrefix(r.URL.Path, "/api/ens/resolve/")
+	name := strings.ToLower(path)
 	
 	if !strings.HasSuffix(name, ".eth") {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Only .eth domains supported"})
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": "Only .eth domains supported"})
 		return
 	}
 	
@@ -129,14 +137,17 @@ func handleResolveName(c *gin.Context) {
 	
 	if exists && time.Now().Unix()-cached.Timestamp < cached.TTL {
 		log.Printf("Cache hit for %s", name)
-		c.JSON(http.StatusOK, cached)
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(cached)
 		return
 	}
 	
 	// Mock resolution (would query actual ENS)
 	record, err := resolveENSName(name)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": fmt.Sprintf("Name not found: %s", name)})
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusNotFound)
+		json.NewEncoder(w).Encode(map[string]string{"error": fmt.Sprintf("Name not found: %s", name)})
 		return
 	}
 	
@@ -146,14 +157,23 @@ func handleResolveName(c *gin.Context) {
 	cacheMutex.Unlock()
 	
 	log.Printf("Resolved %s to %s", name, record.Address)
-	c.JSON(http.StatusOK, record)
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(record)
 }
 
-func handleReverseResolve(c *gin.Context) {
-	address := strings.ToLower(c.Param("address"))
+func handleReverseResolve(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	
+	path := strings.TrimPrefix(r.URL.Path, "/api/ens/reverse/")
+	address := strings.ToLower(path)
 	
 	if !isValidAddress(address) {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid address format"})
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": "Invalid address format"})
 		return
 	}
 	
@@ -164,14 +184,17 @@ func handleReverseResolve(c *gin.Context) {
 	
 	if exists && time.Now().Unix()-cached.Timestamp < cached.TTL {
 		log.Printf("Reverse cache hit for %s", address)
-		c.JSON(http.StatusOK, cached)
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(cached)
 		return
 	}
 	
 	// Mock reverse resolution
 	record, err := reverseResolveAddress(address)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": fmt.Sprintf("No ENS name found for address: %s", address)})
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusNotFound)
+		json.NewEncoder(w).Encode(map[string]string{"error": fmt.Sprintf("No ENS name found for address: %s", address)})
 		return
 	}
 	
@@ -181,23 +204,35 @@ func handleReverseResolve(c *gin.Context) {
 	cacheMutex.Unlock()
 	
 	log.Printf("Reverse resolved %s to %s", address, record.Name)
-	c.JSON(http.StatusOK, record)
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(record)
 }
 
-func handleBatchResolve(c *gin.Context) {
+func handleBatchResolve(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	
 	var request BatchResolveRequest
-	if err := c.ShouldBindJSON(&request); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
+	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": "Invalid request format"})
 		return
 	}
 	
 	if len(request.Names) == 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "No names provided"})
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": "No names provided"})
 		return
 	}
 	
 	if len(request.Names) > 50 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Too many names (max 50)"})
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": "Too many names (max 50)"})
 		return
 	}
 	
@@ -243,11 +278,18 @@ func handleBatchResolve(c *gin.Context) {
 	}
 	
 	log.Printf("Batch resolved %d names, %d errors", len(results), len(errors))
-	c.JSON(http.StatusOK, response)
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
 }
 
-func handleGetAvatar(c *gin.Context) {
-	name := strings.ToLower(c.Param("name"))
+func handleGetAvatar(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	
+	path := strings.TrimPrefix(r.URL.Path, "/api/ens/avatar/")
+	name := strings.ToLower(path)
 	
 	// Get ENS record
 	cacheMutex.RLock()
@@ -258,26 +300,44 @@ func handleGetAvatar(c *gin.Context) {
 		// Try to resolve first
 		resolved, err := resolveENSName(name)
 		if err != nil {
-			c.JSON(http.StatusNotFound, gin.H{"error": "Name not found"})
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusNotFound)
+			json.NewEncoder(w).Encode(map[string]string{"error": "Name not found"})
 			return
 		}
 		record = resolved
 	}
 	
 	if record.Avatar == "" {
-		c.JSON(http.StatusNotFound, gin.H{"error": "No avatar set for this name"})
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusNotFound)
+		json.NewEncoder(w).Encode(map[string]string{"error": "No avatar set for this name"})
 		return
 	}
 	
-	c.JSON(http.StatusOK, gin.H{
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{
 		"name":   record.Name,
 		"avatar": record.Avatar,
 	})
 }
 
-func handleGetTextRecord(c *gin.Context) {
-	name := strings.ToLower(c.Param("name"))
-	key := c.Param("key")
+func handleGetTextRecord(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	
+	path := strings.TrimPrefix(r.URL.Path, "/api/ens/text/")
+	parts := strings.SplitN(path, "/", 2)
+	if len(parts) != 2 {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": "Invalid path format"})
+		return
+	}
+	name := strings.ToLower(parts[0])
+	key := parts[1]
 	
 	// Get ENS record
 	cacheMutex.RLock()
@@ -288,36 +348,53 @@ func handleGetTextRecord(c *gin.Context) {
 		// Try to resolve first
 		resolved, err := resolveENSName(name)
 		if err != nil {
-			c.JSON(http.StatusNotFound, gin.H{"error": "Name not found"})
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusNotFound)
+			json.NewEncoder(w).Encode(map[string]string{"error": "Name not found"})
 			return
 		}
 		record = resolved
 	}
 	
 	if record.TextRecords == nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "No text records found"})
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusNotFound)
+		json.NewEncoder(w).Encode(map[string]string{"error": "No text records found"})
 		return
 	}
 	
 	value, exists := record.TextRecords[key]
 	if !exists {
-		c.JSON(http.StatusNotFound, gin.H{"error": fmt.Sprintf("Text record '%s' not found", key)})
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusNotFound)
+		json.NewEncoder(w).Encode(map[string]string{"error": fmt.Sprintf("Text record '%s' not found", key)})
 		return
 	}
 	
-	c.JSON(http.StatusOK, gin.H{
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
 		"name":  record.Name,
 		"key":   key,
 		"value": value,
 	})
 }
 
-func handleSearchNames(c *gin.Context) {
-	query := strings.ToLower(c.Query("q"))
-	limitStr := c.DefaultQuery("limit", "20")
+func handleSearchNames(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	
+	query := strings.ToLower(r.URL.Query().Get("q"))
+	limitStr := r.URL.Query().Get("limit")
+	if limitStr == "" {
+		limitStr = "20"
+	}
 	
 	if query == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Query parameter 'q' required"})
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": "Query parameter 'q' required"})
 		return
 	}
 	
@@ -340,7 +417,8 @@ func handleSearchNames(c *gin.Context) {
 	}
 	cacheMutex.RUnlock()
 	
-	c.JSON(http.StatusOK, gin.H{
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
 		"query":   query,
 		"results": results,
 		"count":   len(results),
@@ -396,17 +474,14 @@ func parseLimit(limitStr string) (int, error) {
 		return 20, nil
 	}
 	
-	// Simple conversion - would use strconv.Atoi in real implementation
-	switch limitStr {
-	case "10":
-		return 10, nil
-	case "20":
-		return 20, nil
-	case "50":
-		return 50, nil
-	case "100":
-		return 100, nil
-	default:
-		return 20, fmt.Errorf("invalid limit")
+	limit, err := strconv.Atoi(limitStr)
+	if err != nil {
+		return 20, fmt.Errorf("invalid limit: %v", err)
 	}
+	
+	if limit <= 0 || limit > 100 {
+		return 20, fmt.Errorf("limit must be between 1 and 100")
+	}
+	
+	return limit, nil
 }
