@@ -1,12 +1,11 @@
 package main
 
 import (
-	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
-	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -80,17 +79,14 @@ func handleGenerateReceipt(c *gin.Context) {
 	// Convert receipt to uploadable format
 	var uploadData []byte
 	var filename string
-	var contentType string
 
 	switch req.Format {
 	case "pdf":
 		uploadData, err = generatePDFReceipt(receipt)
 		filename = fmt.Sprintf("receipt_%d.pdf", req.PaymentID)
-		contentType = "application/pdf"
 	default:
 		uploadData, err = json.MarshalIndent(receipt, "", "  ")
 		filename = fmt.Sprintf("receipt_%d.json", req.PaymentID)
-		contentType = "application/json"
 	}
 
 	if err != nil {
@@ -306,4 +302,28 @@ func getNetworkName(chainID int) string {
 	default:
 		return "Unknown"
 	}
+}
+
+func uploadToFilecoin(data []byte, filename string) (string, error) {
+	ctx := context.Background()
+	result, err := storage.filecoinClient.Upload(ctx, data, filename, nil)
+	if err != nil {
+		return "", err
+	}
+	return result.CID, nil
+}
+
+func retrieveFromFilecoin(cid string) ([]byte, map[string]string, error) {
+	ctx := context.Background()
+	result, err := storage.filecoinClient.Retrieve(ctx, cid)
+	if err != nil {
+		return nil, nil, err
+	}
+	
+	metadata := map[string]string{
+		"filename":    result.Filename,
+		"contentType": result.ContentType,
+	}
+	
+	return result.Data, metadata, nil
 }

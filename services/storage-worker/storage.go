@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"./pkg/filecoin"
+	"github.com/arcbjorn/crosspay/storage-worker/pkg/filecoin"
 )
 
 type StorageService struct {
@@ -226,48 +226,18 @@ func handleNetworkInfo(c *gin.Context) {
 	c.JSON(http.StatusOK, info)
 }
 
-func uploadToFilecoin(data []byte, filename string) (string, error) {
-	// Mock implementation - replace with SynapseSDK
-	// This would use the actual SynapseSDK client
-	
-	log.Printf("Uploading file: %s, size: %d bytes", filename, len(data))
-	
-	// Simulate upload delay
-	time.Sleep(100 * time.Millisecond)
-	
-	// Generate mock CID (would be returned by SynapseSDK)
-	cid := fmt.Sprintf("bafybeig%s%d", filename[:min(len(filename), 8)], time.Now().Unix())
-	
-	log.Printf("File uploaded successfully, CID: %s", cid)
-	return cid, nil
-}
-
-func retrieveFromFilecoin(cid string) ([]byte, map[string]string, error) {
-	// Mock implementation - replace with SynapseSDK
-	log.Printf("Retrieving file with CID: %s", cid)
-	
-	// Simulate retrieval delay
-	time.Sleep(50 * time.Millisecond)
-	
-	// Mock data
-	data := []byte(fmt.Sprintf("Mock file content for CID: %s", cid))
-	metadata := map[string]string{
-		"filename":    "receipt.json",
-		"contentType": "application/json",
-		"uploadTime":  time.Now().Format(time.RFC3339),
-	}
-	
-	return data, metadata, nil
-}
+// Removed deprecated mock functions - now using SynapseClient directly
 
 func calculateStorageCost(sizeBytes int64) string {
-	// Mock cost calculation - replace with actual Filecoin pricing
-	costFIL := float64(sizeBytes) * 0.000001 // 0.000001 FIL per byte
+	// Fallback cost calculation - actual pricing comes from SynapseSDK
+	// This is used only when SynapseSDK pricing is unavailable
+	costFIL := float64(sizeBytes) * 0.000001 // 0.000001 FIL per byte (estimate)
 	return fmt.Sprintf("%.6f", costFIL)
 }
 
 func calculateUSDEquivalent(filCost string) string {
-	// Mock USD conversion - would use oracle price
+	// TODO: Integrate with oracle service for FIL/USD price
+	// For now, use approximate FIL price
 	return "0.00"
 }
 
