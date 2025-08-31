@@ -2,6 +2,8 @@
 	import '../app.css';
 	import WalletConnect from '$lib/components/WalletConnect.svelte';
 	import WagmiProvider from '$lib/components/WagmiProvider.svelte';
+	import ToastContainer from '$lib/components/ToastContainer.svelte';
+	import ThemeToggle from '$lib/components/ThemeToggle.svelte';
 	
 	let { children } = $props();
 </script>
@@ -28,7 +30,10 @@
 					<li><a href="/receipts">Receipts</a></li>
 				</ul>
 			</div>
-			<WalletConnect />
+			<div class="navbar-end flex items-center gap-2">
+				<ThemeToggle />
+				<WalletConnect />
+			</div>
 		</div>
 
 		<main class="container mx-auto px-4 py-8">
@@ -41,4 +46,7 @@
 			</div>
 		</footer>
 	</div>
+	
+	<!-- Global Toast Container -->
+	<ToastContainer />
 </WagmiProvider>
