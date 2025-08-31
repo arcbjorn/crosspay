@@ -100,7 +100,8 @@ contract GrantPool is ReentrancyGuard, Ownable, Pausable {
     error InsufficientPool();
     error InvalidTimeParameters();
 
-    constructor() Ownable(msg.sender) {}
+    constructor() Ownable(msg.sender) {
+    }
 
     function createGrant(
         string calldata title,
@@ -160,7 +161,7 @@ contract GrantPool is ReentrancyGuard, Ownable, Pausable {
     function submitBid(
         uint256 grantId,
         einput encryptedAmount,
-        bytes memory inputProof,
+        bytes calldata inputProof,
         string calldata proposalURI
     ) external nonReentrant whenNotPaused {
         Grant storage grant = grants[grantId];
@@ -179,6 +180,8 @@ contract GrantPool is ReentrancyGuard, Ownable, Pausable {
         }
 
         euint256 bidAmount = TFHE.asEuint256(encryptedAmount, inputProof);
+        TFHE.allowThis(bidAmount);
+        TFHE.allow(bidAmount, msg.sender);
         
         grant.encryptedBids[msg.sender] = bidAmount;
         grant.hasSubmitted[msg.sender] = true;
@@ -440,5 +443,27 @@ contract GrantPool is ReentrancyGuard, Ownable, Pausable {
 
     function getGrantCount() external view returns (uint256) {
         return _grantCounter;
+    }
+
+    function getEncryptedBid(uint256 grantId, address bidder) external view returns (euint256) {
+        Grant storage grant = grants[grantId];
+        
+        if (grant.id == 0) {
+            revert InvalidGrantId();
+        }
+        if (!grant.hasSubmitted[bidder]) {
+            revert NotSubmitted();
+        }
+
+        require(
+            msg.sender == bidder ||
+            msg.sender == owner() ||
+            grant.phase == GrantPhase.BiddingClosed ||
+            grant.phase == GrantPhase.WinnerSelected ||
+            grant.phase == GrantPhase.Completed,
+            "Unauthorized access to encrypted bid"
+        );
+
+        return grant.encryptedBids[bidder];
     }
 }
