@@ -116,7 +116,7 @@ contract TimelockControllerTest is Test {
     }
     
     function testEmergencySchedule() public {
-        bytes memory data = abi.encodeWithSignature("emergencyFunction()");
+        bytes memory data = abi.encodeWithSignature("emergencyPause()");
         bytes32 salt = keccak256("emergency");
         uint256 emergencyDelay = 1 hours;
         
@@ -137,7 +137,7 @@ contract TimelockControllerTest is Test {
             salt
         );
         
-        assertTrue(timelock.isOperationPending(id));
+        assertTrue(timelock.isEmergencyOperationPending(id));
         assertEq(timelock.getTimestamp(id), block.timestamp + emergencyDelay);
     }
     
