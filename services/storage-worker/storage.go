@@ -6,15 +6,16 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"os"
 	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"./pkg/filecoin"
 )
 
 type StorageService struct {
-	// SynapseSDK client would be initialized here
-	// client *synapsesdk.Client
+	filecoinClient *filecoin.SynapseClient
 }
 
 type UploadRequest struct {
@@ -46,7 +47,24 @@ type CostEstimate struct {
 	USDEquiv     string `json:"usd_equivalent"`
 }
 
-var storage = &StorageService{}
+var storage *StorageService
+
+func initStorage() {
+	apiURL := os.Getenv("SYNAPSE_API_URL")
+	apiKey := os.Getenv("SYNAPSE_API_KEY")
+	networkID := os.Getenv("FILECOIN_NETWORK")
+	
+	if apiKey == "" {
+		log.Println("Warning: SYNAPSE_API_KEY not set, using mock mode")
+		// In production, this should be an error
+	}
+
+	storage = &StorageService{
+		filecoinClient: filecoin.NewSynapseClient(apiURL, apiKey, networkID),
+	}
+	
+	log.Printf("Storage service initialized with Filecoin network: %s", networkID)
+}
 
 func handleUpload(c *gin.Context) {
 	file, header, err := c.Request.FormFile("file")
@@ -62,20 +80,27 @@ func handleUpload(c *gin.Context) {
 		return
 	}
 
-	// Mock SynapseSDK upload - replace with actual implementation
-	cid, err := uploadToFilecoin(data, header.Filename)
+	// Upload to Filecoin via SynapseSDK
+	ctx := context.Background()
+	result, err := storage.filecoinClient.Upload(ctx, data, header.Filename, &filecoin.UploadOptions{
+		DealDuration: 180, // 180 days
+		PinToIPFS:    true,
+		Metadata: map[string]string{
+			"contentType": header.Header.Get("Content-Type"),
+			"uploader":    c.ClientIP(),
+		},
+	})
 	if err != nil {
+		log.Printf("Filecoin upload failed: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Upload failed: %v", err)})
 		return
 	}
 
-	cost := calculateStorageCost(int64(len(data)))
-
 	response := UploadResponse{
-		CID:       cid,
-		Size:      int64(len(data)),
-		Cost:      cost,
-		Timestamp: time.Now(),
+		CID:       result.CID,
+		Size:      result.Size,
+		Cost:      result.StorageCost,
+		Timestamp: result.CreatedAt,
 	}
 
 	c.JSON(http.StatusOK, response)
@@ -88,20 +113,22 @@ func handleRetrieve(c *gin.Context) {
 		return
 	}
 
-	// Mock SynapseSDK retrieval - replace with actual implementation
-	data, metadata, err := retrieveFromFilecoin(cid)
+	// Retrieve from Filecoin via SynapseSDK
+	ctx := context.Background()
+	result, err := storage.filecoinClient.Retrieve(ctx, cid)
 	if err != nil {
+		log.Printf("Filecoin retrieval failed: %v", err)
 		c.JSON(http.StatusNotFound, gin.H{"error": fmt.Sprintf("Retrieval failed: %v", err)})
 		return
 	}
 
 	response := RetrieveResponse{
-		Data:        data,
-		Filename:    metadata["filename"],
-		ContentType: metadata["contentType"],
-		Metadata:    metadata,
-		Size:        int64(len(data)),
-		Timestamp:   time.Now(),
+		Data:        result.Data,
+		Filename:    result.Filename,
+		ContentType: result.ContentType,
+		Metadata:    result.Metadata,
+		Size:        result.Size,
+		Timestamp:   result.RetrievedAt,
 	}
 
 	c.JSON(http.StatusOK, response)
@@ -115,7 +142,14 @@ func handleCostEstimate(c *gin.Context) {
 		return
 	}
 
-	cost := calculateStorageCost(size)
+	// Get cost estimate from SynapseSDK
+	ctx := context.Background()
+	cost, err := storage.filecoinClient.EstimateStorageCost(ctx, size, 180) // 180 days
+	if err != nil {
+		log.Printf("Failed to get cost estimate: %v", err)
+		// Fallback to calculation
+		cost = calculateStorageCost(size)
+	}
 	
 	response := CostEstimate{
 		SizeBytes:    size,
@@ -124,6 +158,72 @@ func handleCostEstimate(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, response)
+}
+
+func handleListFiles(c *gin.Context) {
+	ctx := context.Background()
+	files, err := storage.filecoinClient.ListFiles(ctx, 50, 0) // Default limit and offset
+	if err != nil {
+		log.Printf("Failed to list files: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to list files"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"files": files,
+		"count": len(files),
+	})
+}
+
+func handlePinToIPFS(c *gin.Context) {
+	cid := c.Param("cid")
+	if cid == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "CID required"})
+		return
+	}
+
+	ctx := context.Background()
+	err := storage.filecoinClient.PinToIPFS(ctx, cid)
+	if err != nil {
+		log.Printf("Failed to pin to IPFS: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to pin to IPFS"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Successfully pinned to IPFS",
+		"cid":     cid,
+	})
+}
+
+func handleDealStatus(c *gin.Context) {
+	dealID := c.Param("dealId")
+	if dealID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Deal ID required"})
+		return
+	}
+
+	ctx := context.Background()
+	status, err := storage.filecoinClient.GetDealStatus(ctx, dealID)
+	if err != nil {
+		log.Printf("Failed to get deal status: %v", err)
+		c.JSON(http.StatusNotFound, gin.H{"error": "Deal not found"})
+		return
+	}
+
+	c.JSON(http.StatusOK, status)
+}
+
+func handleNetworkInfo(c *gin.Context) {
+	ctx := context.Background()
+	info, err := storage.filecoinClient.GetNetworkInfo(ctx)
+	if err != nil {
+		log.Printf("Failed to get network info: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get network info"})
+		return
+	}
+
+	c.JSON(http.StatusOK, info)
 }
 
 func uploadToFilecoin(data []byte, filename string) (string, error) {
