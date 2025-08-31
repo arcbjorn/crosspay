@@ -34,7 +34,9 @@ contract PaymentCoreTest is Test {
         address token,
         uint256 amount,
         uint256 fee,
-        string metadataURI
+        string metadataURI,
+        string senderENS,
+        string recipientENS
     );
     
     event PaymentCompleted(uint256 indexed id, address indexed completer);
@@ -66,14 +68,18 @@ contract PaymentCoreTest is Test {
             address(0),
             PAYMENT_AMOUNT,
             FEE_AMOUNT,
-            ""
+            "",
+            "alice.eth",
+            "bob.eth"
         );
         
         uint256 paymentId = paymentCore.createPayment{value: TOTAL_AMOUNT}(
             bob,
             address(0),
             PAYMENT_AMOUNT,
-            ""
+            "",
+            "alice.eth",
+            "bob.eth"
         );
         
         assertEq(paymentId, 1);
@@ -97,7 +103,9 @@ contract PaymentCoreTest is Test {
             bob,
             address(mockToken),
             PAYMENT_AMOUNT,
-            "ipfs://test"
+            "ipfs://test",
+            "",
+            ""
         );
         
         PaymentCore.Payment memory payment = paymentCore.getPayment(paymentId);
@@ -114,6 +122,8 @@ contract PaymentCoreTest is Test {
             bob,
             address(0),
             PAYMENT_AMOUNT,
+            "",
+            "",
             ""
         );
         vm.stopPrank();
@@ -143,6 +153,8 @@ contract PaymentCoreTest is Test {
             bob,
             address(0),
             PAYMENT_AMOUNT,
+            "",
+            "",
             ""
         );
         vm.stopPrank();
@@ -174,6 +186,8 @@ contract PaymentCoreTest is Test {
             bob,
             address(0),
             PAYMENT_AMOUNT,
+            "",
+            "",
             ""
         );
         
@@ -192,6 +206,8 @@ contract PaymentCoreTest is Test {
             alice,
             address(0),
             PAYMENT_AMOUNT,
+            "",
+            "",
             ""
         );
         
@@ -206,6 +222,8 @@ contract PaymentCoreTest is Test {
             bob,
             address(0),
             0,
+            "",
+            "",
             ""
         );
         
@@ -219,6 +237,8 @@ contract PaymentCoreTest is Test {
             bob,
             address(0),
             PAYMENT_AMOUNT,
+            "",
+            "",
             ""
         );
         vm.stopPrank();
@@ -253,6 +273,8 @@ contract PaymentCoreTest is Test {
             bob,
             address(0),
             PAYMENT_AMOUNT,
+            "",
+            "",
             ""
         );
         vm.stopPrank();
@@ -267,6 +289,8 @@ contract PaymentCoreTest is Test {
             bob,
             address(0),
             PAYMENT_AMOUNT,
+            "",
+            "",
             ""
         );
         assertEq(paymentId, 1);
@@ -281,6 +305,8 @@ contract PaymentCoreTest is Test {
             bob,
             address(0),
             PAYMENT_AMOUNT,
+            "",
+            "",
             ""
         );
         
@@ -288,6 +314,8 @@ contract PaymentCoreTest is Test {
             bob,
             address(0),
             PAYMENT_AMOUNT,
+            "",
+            "",
             ""
         );
         
@@ -321,6 +349,8 @@ contract PaymentCoreTest is Test {
             bob,
             address(0),
             PAYMENT_AMOUNT,
+            "",
+            "",
             ""
         );
         vm.stopPrank();
