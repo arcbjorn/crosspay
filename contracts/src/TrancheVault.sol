@@ -430,6 +430,17 @@ contract TrancheVault is ERC20, Ownable, ReentrancyGuard, Pausable {
 
         totalVaultAssets -= (slashAmount - remainingSlash);
 
+        // Proportionally reduce user positions for each slashed tranche
+        if (juniorSlashed > 0) {
+            _reduceUserPositionsProportionally(TrancheType.Junior, juniorSlashed);
+        }
+        if (mezzanineSlashed > 0) {
+            _reduceUserPositionsProportionally(TrancheType.Mezzanine, mezzanineSlashed);
+        }
+        if (seniorSlashed > 0) {
+            _reduceUserPositionsProportionally(TrancheType.Senior, seniorSlashed);
+        }
+
         emit Slashed(
             slashingEventCounter,
             slashAmount,
@@ -615,6 +626,42 @@ contract TrancheVault is ERC20, Ownable, ReentrancyGuard, Pausable {
         // Simplified: recompute health factors for all known depositors
         for (uint256 i = 0; i < depositors.length; i++) {
             _updateHealthFactor(depositors[i]);
+        }
+    }
+
+    function _reduceUserPositionsProportionally(TrancheType trancheType, uint256 slashAmount) internal {
+        // Get total deposits in this tranche before slashing
+        uint256 totalTrancheDeposits = tranches[trancheType].currentBalance + slashAmount;
+        
+        if (totalTrancheDeposits == 0) return;
+        
+        // Proportionally reduce each user's position in this tranche
+        for (uint256 i = 0; i < depositors.length; i++) {
+            address user = depositors[i];
+            UserPosition storage position = userPositions[user];
+            
+            uint256 userDeposit;
+            if (trancheType == TrancheType.Junior) {
+                userDeposit = position.juniorDeposit;
+            } else if (trancheType == TrancheType.Mezzanine) {
+                userDeposit = position.mezzanineDeposit;
+            } else if (trancheType == TrancheType.Senior) {
+                userDeposit = position.seniorDeposit;
+            }
+            
+            if (userDeposit > 0) {
+                // Calculate proportional loss: userLoss = (userDeposit * slashAmount) / totalTrancheDeposits
+                uint256 userLoss = (userDeposit * slashAmount) / totalTrancheDeposits;
+                
+                // Reduce user's position by their proportional loss
+                if (trancheType == TrancheType.Junior) {
+                    position.juniorDeposit = userDeposit > userLoss ? userDeposit - userLoss : 0;
+                } else if (trancheType == TrancheType.Mezzanine) {
+                    position.mezzanineDeposit = userDeposit > userLoss ? userDeposit - userLoss : 0;
+                } else if (trancheType == TrancheType.Senior) {
+                    position.seniorDeposit = userDeposit > userLoss ? userDeposit - userLoss : 0;
+                }
+            }
         }
     }
 

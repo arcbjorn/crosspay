@@ -63,7 +63,7 @@ contract TrancheVaultLiquidationTest is Test {
         vm.stopPrank();
         
         // Simulate slashing event to trigger health factor degradation
-        vault.executeSlashing(1000 * 10**18, alice, "Test slashing for health factor");
+        vault.executeSlashing(500 * 10**18, alice, "Test slashing for health factor");
         
         // Health factor should decrease after slashing
         uint256 postSlashHealthFactor = vault.calculateHealthFactor(alice);
@@ -105,8 +105,8 @@ contract TrancheVaultLiquidationTest is Test {
         vault.deposit(TrancheVault.TrancheType.Senior, 5000 * 10**18);
         vm.stopPrank();
         
-        // Force health factor below threshold through massive slashing
-        vault.executeSlashing(6000 * 10**18, alice, "Massive slashing to trigger liquidation");
+        // Force health factor below threshold through moderate slashing (not total wipeout)
+        vault.executeSlashing(4000 * 10**18, alice, "Moderate slashing to trigger liquidation");
         
         // Check if Alice is now eligible for liquidation
         uint256 aliceHealthFactor = vault.calculateHealthFactor(alice);
