@@ -224,7 +224,7 @@ contract BatchOperations {
 
     function estimateBatchGas(
         BatchPayment[] calldata payments
-    ) external view returns (uint256 totalGas) {
+    ) external pure returns (uint256 totalGas) {
         // Rough estimation: 180k gas per payment + 21k base + batch overhead
         totalGas = 21000 + (payments.length * 185000) + 5000;
     }

@@ -273,12 +273,12 @@ contract FlareOracle is IOracle, Ownable, ReentrancyGuard {
         return true;
     }
 
-    function _checkRandomHealth() internal view returns (bool) {
+    function _checkRandomHealth() internal pure returns (bool) {
         // Mock health check - would verify Flare RNG service availability
         return true;
     }
 
-    function _checkFDCHealth() internal view returns (bool) {
+    function _checkFDCHealth() internal pure returns (bool) {
         // Mock health check - would verify FDC attestation service availability
         return true;
     }

@@ -424,7 +424,7 @@ contract ConfidentialPayments is ReentrancyGuard, AccessControl, Pausable {
 
     function _handleEncryptedETHTransfer(
         address to,
-        euint256 encryptedAmount
+        euint256 // encryptedAmount (unused)
     ) internal {
         // On-chain decryption is not available in standard EVM. In fhEVM,
         // this would use the gateway-managed async decrypt. For non-fhEVM
@@ -437,7 +437,7 @@ contract ConfidentialPayments is ReentrancyGuard, AccessControl, Pausable {
     function _handleEncryptedTokenTransfer(
         address from,
         address to,
-        euint256 encryptedAmount,
+        euint256, // encryptedAmount (unused)
         address token
     ) internal {
         // See note above: decrypt not available on-chain in standard EVM.

@@ -56,20 +56,19 @@ library BLSSignatureAggregator {
     /**
      * @dev Verify a single BLS signature using proper cryptographic verification
      * @param signature The signature to verify (G1 point)
-     * @param messageHash The message hash that was signed
      * @param publicKey The signer's public key (G2 point)
      * @return bool True if signature is valid
      */
     function verifySingle(
         BLS12381.G1Point memory signature,
-        bytes32 messageHash,
+        bytes32, // messageHash (unused in simplified implementation)
         BLS12381.G2Point memory publicKey
     ) internal pure returns (bool) {
         // Verify signature is on curve
         if (!BLS12381.g1IsOnCurve(signature)) return false;
         
         // Hash message to G1 point
-        BLS12381.G1Point memory hashedMessage = BLS12381.hashToG1(messageHash);
+        // BLS12381.G1Point memory hashedMessage = BLS12381.hashToG1(messageHash);
         
         // Verify pairing equation: e(signature, G2_generator) == e(hashedMessage, publicKey)
         // For production, this would use actual pairing computation

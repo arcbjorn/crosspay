@@ -8,6 +8,7 @@ import "../src/TrancheVault.sol";
 import "../src/GrantPool.sol";
 import "../src/TimelockController.sol";
 import "../src/BatchOperations.sol";
+import "../src/PaymentCore.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
 contract MockUSDC is ERC20 {
@@ -28,6 +29,7 @@ contract DeployAdvancedScript is Script {
     ConfidentialPayments public confidentialPayments;
     RelayValidator public relayValidator;
     TrancheVault public trancheVault;
+    PaymentCore public paymentCore;
     GrantPool public grantPool;
     CrossPayTimelock public timelock;
     BatchOperations public batchOps;
@@ -60,11 +62,15 @@ contract DeployAdvancedScript is Script {
         confidentialPayments = new ConfidentialPayments();
         console.log("ConfidentialPayments deployed at:", address(confidentialPayments));
         
-        // 2. Deploy RelayValidator
+        // 2. Deploy PaymentCore
+        paymentCore = new PaymentCore();
+        console.log("PaymentCore deployed at:", address(paymentCore));
+        
+        // 3. Deploy RelayValidator
         relayValidator = new RelayValidator();
         console.log("RelayValidator deployed at:", address(relayValidator));
         
-        // 3. Deploy TrancheVault
+        // 4. Deploy TrancheVault
         trancheVault = new TrancheVault(
             address(usdc),
             "CrossPay Tranche Vault",
@@ -72,11 +78,11 @@ contract DeployAdvancedScript is Script {
         );
         console.log("TrancheVault deployed at:", address(trancheVault));
         
-        // 4. Deploy GrantPool
+        // 5. Deploy GrantPool
         grantPool = new GrantPool();
         console.log("GrantPool deployed at:", address(grantPool));
         
-        // 5. Deploy TimelockController
+        // 6. Deploy TimelockController
         address[] memory proposers = new address[](1);
         address[] memory executors = new address[](1);
         proposers[0] = multisig;
@@ -89,11 +95,12 @@ contract DeployAdvancedScript is Script {
         );
         console.log("TimelockController deployed at:", address(timelock));
         
-        // 6. Deploy BatchOperations
+        // 7. Deploy BatchOperations
         batchOps = new BatchOperations(
             address(confidentialPayments),
             address(relayValidator),
-            address(trancheVault)
+            address(trancheVault),
+            address(paymentCore)
         );
         console.log("BatchOperations deployed at:", address(batchOps));
         

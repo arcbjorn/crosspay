@@ -71,8 +71,9 @@ contract DVNAdapterTest is Test {
     function testInitiateCrossChainPayment() public {
         vm.startPrank(alice);
         
-        // Create a payment first
-        uint256 paymentId = paymentCore.createPayment{value: 1.01 ether}(
+        // Create a payment first with correct fee calculation
+        // Fee = 1 ether * 10 / 10000 = 0.001 ether
+        uint256 paymentId = paymentCore.createPayment{value: 1.001 ether}(
             bob,
             address(0), // ETH
             1 ether,
@@ -102,7 +103,7 @@ contract DVNAdapterTest is Test {
     function testVerifyDVNProof() public {
         vm.startPrank(alice);
         
-        uint256 paymentId = paymentCore.createPayment{value: 1.01 ether}(
+        uint256 paymentId = paymentCore.createPayment{value: 1.001 ether}(
             bob,
             address(0),
             1 ether,
@@ -133,7 +134,7 @@ contract DVNAdapterTest is Test {
     function testUnsupportedChain() public {
         vm.startPrank(alice);
         
-        uint256 paymentId = paymentCore.createPayment{value: 1.01 ether}(
+        uint256 paymentId = paymentCore.createPayment{value: 1.001 ether}(
             bob,
             address(0),
             1 ether,
@@ -156,7 +157,7 @@ contract DVNAdapterTest is Test {
     function testInsufficientGas() public {
         vm.startPrank(alice);
         
-        uint256 paymentId = paymentCore.createPayment{value: 1.01 ether}(
+        uint256 paymentId = paymentCore.createPayment{value: 1.001 ether}(
             bob,
             address(0),
             1 ether,
@@ -234,7 +235,7 @@ contract DVNAdapterTest is Test {
         
         vm.startPrank(alice);
         
-        uint256 paymentId = paymentCore.createPayment{value: 1.01 ether}(
+        uint256 paymentId = paymentCore.createPayment{value: 1.001 ether}(
             bob,
             address(0),
             1 ether,
@@ -260,7 +261,7 @@ contract DVNAdapterTest is Test {
     function testIsPaymentVerified() public {
         vm.startPrank(alice);
         
-        uint256 paymentId = paymentCore.createPayment{value: 1.01 ether}(
+        uint256 paymentId = paymentCore.createPayment{value: 1.001 ether}(
             bob,
             address(0),
             1 ether,

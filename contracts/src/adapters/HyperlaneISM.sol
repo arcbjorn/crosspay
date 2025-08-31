@@ -210,6 +210,10 @@ contract HyperlaneISM is Ownable, Pausable {
             uint256 timestamp
         ) = abi.decode(messageBody, (uint256, address, address, address, uint256, string, uint256));
         
+        // Avoid unused variable warnings
+        sourcePaymentId; // Source payment ID (informational only)
+        senderAddr; // Sender address (informational only)
+        
         // Create local payment record via trusted adapter path
         uint256 localPaymentId = paymentCore.createPaymentFromAdapter(
             recipient,

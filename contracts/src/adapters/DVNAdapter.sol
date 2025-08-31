@@ -180,7 +180,7 @@ contract DVNAdapter is Ownable, Pausable {
         }
         
         // Request DVN verification
-        (bool verified, bytes32 digest) = dvn.verifyPayload(
+        (bool verified, ) = dvn.verifyPayload(
             ccPayment.sourceChain,
             ccPayment.sourceAddress,
             ccPayment.nonce,
@@ -223,6 +223,9 @@ contract DVNAdapter is Ownable, Pausable {
             string memory metadataURI,
             uint256 timestamp
         ) = abi.decode(message, (uint256, address, address, address, uint256, string, uint256));
+        
+        // Avoid unused variable warnings
+        sender; // Source sender (informational only)
         
         // Create local payment record via trusted adapter path
         uint256 localPaymentId = paymentCore.createPaymentFromAdapter(

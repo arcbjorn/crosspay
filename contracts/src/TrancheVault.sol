@@ -688,7 +688,8 @@ contract TrancheVault is ERC20, Ownable, ReentrancyGuard, Pausable {
         return liquidationEvents[eventId];
     }
 
-    function getUsersAtRisk(uint256 threshold) external view returns (address[] memory) {
+    function getUsersAtRisk(uint256 // threshold (unused)
+    ) external pure returns (address[] memory) {
         // This is a simplified implementation - in production, you'd maintain 
         // a more efficient data structure for this query
         address[] memory atRiskUsers = new address[](0);
@@ -701,7 +702,7 @@ contract TrancheVault is ERC20, Ownable, ReentrancyGuard, Pausable {
         uint256 newPenalty,
         uint256 newReward,
         uint256 newMaxRatio
-    ) external onlyOwner {
+    ) external view onlyOwner {
         require(newThreshold <= 9000, "Threshold too high");
         require(newPenalty <= 1000, "Penalty too high");
         require(newReward <= 500, "Reward too high");

@@ -78,7 +78,7 @@ contract HyperlaneISMTest is Test {
         vm.startPrank(alice);
         
         // Create a payment first
-        uint256 paymentId = paymentCore.createPayment{value: 1.01 ether}(
+        uint256 paymentId = paymentCore.createPayment{value: 1.001 ether}(
             bob,
             address(0), // ETH
             1 ether,
@@ -107,7 +107,7 @@ contract HyperlaneISMTest is Test {
     function testVerifyISMProof() public {
         vm.startPrank(alice);
         
-        uint256 paymentId = paymentCore.createPayment{value: 1.01 ether}(
+        uint256 paymentId = paymentCore.createPayment{value: 1.001 ether}(
             bob,
             address(0),
             1 ether,
@@ -182,7 +182,7 @@ contract HyperlaneISMTest is Test {
     function testUnsupportedDomain() public {
         vm.startPrank(alice);
         
-        uint256 paymentId = paymentCore.createPayment{value: 1.01 ether}(
+        uint256 paymentId = paymentCore.createPayment{value: 1.001 ether}(
             bob,
             address(0),
             1 ether,
@@ -204,7 +204,7 @@ contract HyperlaneISMTest is Test {
     function testGetValidationProof() public {
         vm.startPrank(alice);
         
-        uint256 paymentId = paymentCore.createPayment{value: 1.01 ether}(
+        uint256 paymentId = paymentCore.createPayment{value: 1.001 ether}(
             bob,
             address(0),
             1 ether,
@@ -260,7 +260,7 @@ contract HyperlaneISMTest is Test {
         
         vm.startPrank(alice);
         
-        uint256 paymentId = paymentCore.createPayment{value: 1.01 ether}(
+        uint256 paymentId = paymentCore.createPayment{value: 1.001 ether}(
             bob,
             address(0),
             1 ether,
