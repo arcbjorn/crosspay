@@ -7,10 +7,9 @@ import (
 	"math/rand"
 	"net/http"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
-
-	"github.com/gin-gonic/gin"
 )
 
 type PriceData struct {
@@ -107,15 +106,19 @@ func updatePriceFeeds() {
 	}
 }
 
-func handleGetPrice(c *gin.Context) {
-	symbol := c.Param("symbol")
+func handleGetPrice(w http.ResponseWriter, r *http.Request) {
+	// Extract symbol from URL path
+	path := strings.TrimPrefix(r.URL.Path, "/api/ftso/price/")
+	symbol := strings.TrimSuffix(path, "/")
 	
 	pricesMutex.RLock()
 	priceData, exists := currentPrices[symbol]
 	pricesMutex.RUnlock()
 	
 	if !exists {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Symbol not found"})
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusNotFound)
+		json.NewEncoder(w).Encode(map[string]interface{}{"error": "Symbol not found"})
 		return
 	}
 	
@@ -124,12 +127,19 @@ func handleGetPrice(c *gin.Context) {
 		priceData.Valid = false
 	}
 	
-	c.JSON(http.StatusOK, priceData)
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(priceData)
 }
 
-func handleGetPriceHistory(c *gin.Context) {
-	symbol := c.Param("symbol")
-	limitStr := c.DefaultQuery("limit", "50")
+func handleGetPriceHistory(w http.ResponseWriter, r *http.Request) {
+	// Extract symbol from URL path
+	path := strings.TrimPrefix(r.URL.Path, "/api/ftso/price/")
+	symbol := strings.TrimSuffix(path, "/history")
+	limitStr := r.URL.Query().Get("limit")
+	if limitStr == "" {
+		limitStr = "50"
+	}
 	
 	limit, err := strconv.Atoi(limitStr)
 	if err != nil || limit <= 0 {
@@ -144,7 +154,9 @@ func handleGetPriceHistory(c *gin.Context) {
 	pricesMutex.RUnlock()
 	
 	if !exists {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Symbol not found"})
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusNotFound)
+		json.NewEncoder(w).Encode(map[string]interface{}{"error": "Symbol not found"})
 		return
 	}
 	
@@ -159,17 +171,42 @@ func handleGetPriceHistory(c *gin.Context) {
 		Data:   history[start:],
 	}
 	
-	c.JSON(http.StatusOK, response)
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(response)
 }
 
-func handleUpdatePrice(c *gin.Context) {
+func handleUpdatePrice(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "POST" {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		json.NewEncoder(w).Encode(map[string]interface{}{"error": "Method not allowed"})
+		return
+	}
+
 	var request struct {
-		Symbol string  `json:"symbol" binding:"required"`
-		Price  float64 `json:"price" binding:"required"`
+		Symbol string  `json:"symbol"`
+		Price  float64 `json:"price"`
 	}
 	
-	if err := c.ShouldBindJSON(&request); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
+	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]interface{}{"error": "Invalid request format"})
+		return
+	}
+
+	if request.Symbol == "" {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]interface{}{"error": "Symbol is required"})
+		return
+	}
+
+	if request.Price == 0 {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]interface{}{"error": "Price is required"})
 		return
 	}
 	
@@ -183,12 +220,16 @@ func handleUpdatePrice(c *gin.Context) {
 	}
 	
 	if !validSymbol {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Unsupported symbol"})
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]interface{}{"error": "Unsupported symbol"})
 		return
 	}
 	
 	if request.Price <= 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Price must be positive"})
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]interface{}{"error": "Price must be positive"})
 		return
 	}
 	
@@ -214,13 +255,15 @@ func handleUpdatePrice(c *gin.Context) {
 	
 	log.Printf("Price updated: %s = $%.2f", request.Symbol, request.Price)
 	
-	c.JSON(http.StatusOK, gin.H{
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]interface{}{
 		"success": true,
 		"data":    priceData,
 	})
 }
 
-func handleGetSupportedSymbols(c *gin.Context) {
+func handleGetSupportedSymbols(w http.ResponseWriter, r *http.Request) {
 	pricesMutex.RLock()
 	symbolsWithPrices := make(map[string]PriceData)
 	for _, symbol := range supportedSymbols {
@@ -230,7 +273,9 @@ func handleGetSupportedSymbols(c *gin.Context) {
 	}
 	pricesMutex.RUnlock()
 	
-	c.JSON(http.StatusOK, gin.H{
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]interface{}{
 		"supported_symbols": supportedSymbols,
 		"current_prices":    symbolsWithPrices,
 		"total_count":       len(supportedSymbols),
