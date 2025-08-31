@@ -1,12 +1,11 @@
 package main
 
 import (
+	"encoding/json"
 	"log"
 	"net/http"
 	"sync"
 	"time"
-
-	"github.com/gin-gonic/gin"
 )
 
 type OracleStatus struct {
@@ -230,24 +229,42 @@ func checkFDCHealth() ServiceHealth {
 	}
 }
 
-func handleOracleStatus(c *gin.Context) {
+func handleOracleStatus(w http.ResponseWriter, r *http.Request) {
 	statusMutex.RLock()
 	status := *oracleStatus // Copy the status
 	statusMutex.RUnlock()
 	
-	c.JSON(http.StatusOK, status)
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(status)
 }
 
-func handlePerformHealthCheck(c *gin.Context) {
+func handlePerformHealthCheck(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "POST" {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		json.NewEncoder(w).Encode(map[string]interface{}{"error": "Method not allowed"})
+		return
+	}
+
 	go performOracleHealthCheck()
 	
-	c.JSON(http.StatusOK, gin.H{
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]interface{}{
 		"message": "Health check initiated",
 		"timestamp": time.Now().Unix(),
 	})
 }
 
-func handleEmergencyPause(c *gin.Context) {
+func handleEmergencyPause(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "POST" {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		json.NewEncoder(w).Encode(map[string]interface{}{"error": "Method not allowed"})
+		return
+	}
+
 	statusMutex.Lock()
 	circuitBreaker = true
 	oracleStatus.Healthy = false
@@ -256,14 +273,23 @@ func handleEmergencyPause(c *gin.Context) {
 	
 	log.Println("EMERGENCY: Oracle services paused via circuit breaker")
 	
-	c.JSON(http.StatusOK, gin.H{
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]interface{}{
 		"message": "Oracle services paused",
 		"circuit_breaker": true,
 		"timestamp": time.Now().Unix(),
 	})
 }
 
-func handleEmergencyResume(c *gin.Context) {
+func handleEmergencyResume(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "POST" {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		json.NewEncoder(w).Encode(map[string]interface{}{"error": "Method not allowed"})
+		return
+	}
+
 	statusMutex.Lock()
 	circuitBreaker = false
 	oracleStatus.CircuitBreaker = false
@@ -274,32 +300,32 @@ func handleEmergencyResume(c *gin.Context) {
 	
 	log.Println("Oracle services resumed, performing health check...")
 	
-	c.JSON(http.StatusOK, gin.H{
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]interface{}{
 		"message": "Oracle services resumed",
 		"circuit_breaker": false,
 		"timestamp": time.Now().Unix(),
 	})
 }
 
-// Middleware to check if oracle is healthy before processing requests
-func requireHealthyOracle() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		statusMutex.RLock()
-		healthy := oracleStatus.Healthy && !circuitBreaker
-		statusMutex.RUnlock()
-		
-		if !healthy {
-			c.JSON(http.StatusServiceUnavailable, gin.H{
-				"error": "Oracle services unavailable",
-				"circuit_breaker_active": circuitBreaker,
-				"retry_after_seconds": 60,
-			})
-			c.Abort()
-			return
-		}
-		
-		c.Next()
-	}
+// Helper function to check if oracle is healthy before processing requests
+func isOracleHealthy() bool {
+	statusMutex.RLock()
+	healthy := oracleStatus.Healthy && !circuitBreaker
+	statusMutex.RUnlock()
+	return healthy
+}
+
+// Helper function to write unhealthy response
+func writeUnhealthyResponse(w http.ResponseWriter) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusServiceUnavailable)
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"error": "Oracle services unavailable",
+		"circuit_breaker_active": circuitBreaker,
+		"retry_after_seconds": 60,
+	})
 }
 
 func startHealthMonitor() {
