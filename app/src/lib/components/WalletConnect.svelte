@@ -41,7 +41,7 @@
   };
 </script>
 
-<div class="navbar-end">
+<div class="flex items-center">
   {#if wallet.isConnected}
     <div class="dropdown dropdown-end">
       <div tabindex="0" role="button" class="btn btn-ghost">
