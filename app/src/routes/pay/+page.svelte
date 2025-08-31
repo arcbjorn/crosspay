@@ -3,6 +3,7 @@
   import { chainStore, SUPPORTED_CHAINS, setChain } from '$lib/stores/chain';
   import { goto } from '$app/navigation';
   import { PaymentService } from '$lib/services/payment';
+  import { successToast, errorToast, warningToast } from '$lib/stores/toast';
   import type { Address } from 'viem';
   
   $: wallet = $walletStore;
@@ -24,22 +25,26 @@
   const handleSubmit = async () => {
     if (!wallet.isConnected) {
       error = 'Please connect your wallet first';
+      errorToast('Please connect your wallet first');
       return;
     }
     
     if (!recipient || !amount) {
       error = 'Please fill in all required fields';
+      errorToast('Please fill in all required fields');
       return;
     }
     
     if (parseFloat(amount) <= 0) {
       error = 'Amount must be greater than 0';
+      errorToast('Amount must be greater than 0');
       return;
     }
     
     // Basic ETH address validation
     if (!/^0x[a-fA-F0-9]{40}$/.test(recipient)) {
       error = 'Please enter a valid Ethereum address';
+      errorToast('Please enter a valid Ethereum address');
       return;
     }
     
@@ -65,6 +70,8 @@
       );
       
       success = `Payment created successfully! Payment ID: ${result.paymentId}`;
+      successToast(`💸 Payment created! ID: ${result.paymentId}`, 3000);
+      
       console.log('Payment created:', {
         hash: result.hash,
         paymentId: result.paymentId.toString(),
@@ -88,6 +95,7 @@
     } catch (err) {
       console.error('Payment creation failed:', err);
       error = err instanceof Error ? err.message : 'Failed to create payment';
+      errorToast(err instanceof Error ? err.message : 'Failed to create payment');
     } finally {
       isSubmitting = false;
     }
