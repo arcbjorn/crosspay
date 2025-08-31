@@ -135,6 +135,9 @@ contract RelayValidator is ReentrancyGuard, Ownable, Pausable {
     error InvalidBLSPublicKey();
     error SlashingFailed();
 
+    // Accumulate slashed funds if immediate transfer to owner fails
+    uint256 public slashReserve;
+
     constructor() Ownable(msg.sender) {}
 
     function setTimelock(address _timelock) external onlyOwner {
@@ -385,10 +388,17 @@ contract RelayValidator is ReentrancyGuard, Ownable, Pausable {
 
         (bool success, ) = owner().call{value: slashAmount}("");
         if (!success) {
-            revert SlashingFailed();
+            slashReserve += slashAmount;
         }
 
         emit ValidatorSlashed(validator, slashAmount, reason);
+    }
+
+    function withdrawSlashReserve(address payable to) external onlyOwner {
+        uint256 amount = slashReserve;
+        slashReserve = 0;
+        (bool ok, ) = to.call{value: amount}("");
+        require(ok, "Withdraw failed");
     }
 
     function exitValidator() external {
