@@ -1,7 +1,7 @@
 import { parseEther, formatEther, parseEventLogs, type Address } from 'viem';
-import { getPublicClient, getWalletClient, getContractAddress, PaymentCoreABI } from '../contracts';
-import { oracleService } from './oracle';
-import type { Payment, PaymentStatus } from '@types/contracts';
+import { getPublicClient, getWalletClient, getContractAddress, PaymentCoreABI } from '@contracts';
+import { oracleService } from '@services/oracle';
+import type { Payment, PaymentStatus } from '@packages/types/contracts';
 
 export class PaymentService {
   constructor(private chainId: number) {}
@@ -32,7 +32,9 @@ export class PaymentService {
       try {
         const tokenSymbol = isETH ? 'ETH' : 'USDC'; // Default mapping
         const priceData = await oracleService.getCurrentPrice(`${tokenSymbol}/USD`);
-        oraclePrice = BigInt(Math.round(priceData.price * 1e8)); // Convert to 8 decimal format
+        if (priceData) {
+          oraclePrice = BigInt(Math.round(priceData.price * 1e8)); // Convert to 8 decimal format
+        }
       } catch (oracleError) {
         console.warn('Failed to get oracle price:', oracleError);
         // Continue without price snapshot
