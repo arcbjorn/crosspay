@@ -3,6 +3,7 @@
   import { chainStore, SUPPORTED_CHAINS, setChain } from '$lib/stores/chain';
   import { goto } from '$app/navigation';
   import { PaymentService } from '$lib/services/payment';
+  import { ensService } from '$lib/services/ens';
   import { successToast, errorToast, warningToast } from '$lib/stores/toast';
   import type { Address } from 'viem';
   
@@ -20,6 +21,9 @@
   let isSubmitting = false;
   let error = '';
   let success = '';
+  let resolvedAddress = '';
+  let isResolvingENS = false;
+  let senderENSFromWallet = '';
   
   $: fee = amount ? (parseFloat(amount) * 0.001).toFixed(4) : '0';
   $: total = amount ? (parseFloat(amount) + parseFloat(fee)).toFixed(4) : '0';
@@ -45,10 +49,18 @@
       return;
     }
     
-    // Basic ETH address validation
-    if (!/^0x[a-fA-F0-9]{40}$/.test(recipient)) {
-      error = 'Please enter a valid Ethereum address';
-      errorToast('Please enter a valid Ethereum address');
+    // Address validation - either direct address or resolved ENS
+    let finalRecipient = recipient;
+    if (recipient.endsWith('.eth')) {
+      if (!resolvedAddress) {
+        error = 'ENS name could not be resolved. Please check the name or enter a direct address.';
+        errorToast('ENS name could not be resolved');
+        return;
+      }
+      finalRecipient = resolvedAddress;
+    } else if (!/^0x[a-fA-F0-9]{40}$/.test(recipient)) {
+      error = 'Please enter a valid Ethereum address or ENS name';
+      errorToast('Please enter a valid Ethereum address or ENS name');
       return;
     }
     
@@ -66,7 +78,7 @@
       
       // Create payment on blockchain  
       const result = await paymentService.createPayment(
-        recipient as Address,
+        finalRecipient as Address,
         token as Address,
         amount,
         metadataURI || '',
@@ -108,15 +120,58 @@
   };
   
   const resolveENS = async () => {
-    if (recipient.endsWith('.eth')) {
-      // Mock ENS resolution - in real implementation, this would use ENS
-      console.log('Resolving ENS name:', recipient);
-      // For now, just show that we would resolve it
+    if (!recipient.endsWith('.eth') || !ensService.isValidENSName(recipient)) {
+      resolvedAddress = '';
+      return;
+    }
+
+    isResolvingENS = true;
+    
+    try {
+      const address = await ensService.resolveName(recipient);
+      if (address) {
+        resolvedAddress = address;
+        console.log('Resolved ENS name:', recipient, '->', address);
+      } else {
+        resolvedAddress = '';
+        console.warn('Could not resolve ENS name:', recipient);
+      }
+    } catch (error) {
+      console.error('ENS resolution failed:', error);
+      resolvedAddress = '';
+    } finally {
+      isResolvingENS = false;
     }
   };
   
-  $: if (recipient.endsWith('.eth')) {
-    resolveENS();
+  // Reverse ENS lookup for sender
+  const lookupSenderENS = async () => {
+    if (!wallet.address) return;
+    
+    try {
+      const name = await ensService.lookupAddress(wallet.address as Address);
+      if (name && !senderENS) {
+        senderENSFromWallet = name;
+      }
+    } catch (error) {
+      console.error('Sender ENS lookup failed:', error);
+    }
+  };
+
+  // Debounced ENS resolution
+  let ensTimeout: NodeJS.Timeout;
+  $: if (recipient) {
+    clearTimeout(ensTimeout);
+    if (recipient.endsWith('.eth')) {
+      ensTimeout = setTimeout(resolveENS, 500); // 500ms debounce
+    } else {
+      resolvedAddress = '';
+    }
+  }
+
+  // Lookup sender ENS when wallet connects
+  $: if (wallet.isConnected && wallet.address) {
+    lookupSenderENS();
   }
 </script>
 
@@ -179,10 +234,14 @@
             />
             <label class="label">
               <span class="label-text-alt">
-                {#if recipient.endsWith('.eth')}
-                  ENS name detected - will resolve to address
-                {:else if recipient && !/^0x[a-fA-F0-9]{40}$/.test(recipient)}
-                  Please enter a valid address
+                {#if isResolvingENS}
+                  <span class="loading loading-spinner loading-xs"></span> Resolving ENS name...
+                {:else if recipient.endsWith('.eth') && resolvedAddress}
+                  ✅ Resolved to {ensService.formatAddress(resolvedAddress)}
+                {:else if recipient.endsWith('.eth') && !resolvedAddress}
+                  ❌ Could not resolve ENS name
+                {:else if recipient && !/^0x[a-fA-F0-9]{40}$/.test(recipient) && !recipient.endsWith('.eth')}
+                  Please enter a valid address or ENS name
                 {/if}
               </span>
             </label>
@@ -232,13 +291,28 @@
             <input
               id="senderENS"
               type="text"
-              placeholder="alice.eth"
+              placeholder={senderENSFromWallet || "alice.eth"}
               class="input input-bordered w-full"
               bind:value={senderENS}
             />
             <label class="label">
-              <span class="label-text-alt">Display name for sender in receipt</span>
+              <span class="label-text-alt">
+                {#if senderENSFromWallet && !senderENS}
+                  Found: {senderENSFromWallet} (auto-filled)
+                {:else}
+                  Display name for sender in receipt
+                {/if}
+              </span>
             </label>
+            {#if senderENSFromWallet && !senderENS}
+              <button 
+                type="button" 
+                class="btn btn-ghost btn-xs mt-1"
+                on:click={() => senderENS = senderENSFromWallet}
+              >
+                Use {senderENSFromWallet}
+              </button>
+            {/if}
           </div>
 
           <!-- Metadata URI -->
