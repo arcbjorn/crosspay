@@ -370,6 +370,129 @@
         </div>
       {/if}
 
+      <!-- Receipt Storage Section -->
+      {#if currentPayment.receiptCID}
+        <div class="divider"></div>
+        <div>
+          <h3 class="text-lg font-semibold mb-3">Permanent Receipt Storage</h3>
+          <div class="bg-base-200 rounded-lg p-4">
+            <div class="flex items-center justify-between mb-3">
+              <div>
+                <div class="font-medium">Receipt stored on Filecoin</div>
+                <div class="text-sm opacity-70">Permanent, immutable receipt data</div>
+              </div>
+              <div class="badge badge-success">
+                <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                </svg>
+                Verified
+              </div>
+            </div>
+            
+            <div class="flex items-center gap-2 mb-3">
+              <span class="text-sm opacity-70">Content ID:</span>
+              <code class="bg-base-300 px-2 py-1 rounded text-xs font-mono">
+                {currentPayment.receiptCID}
+              </code>
+              <button 
+                class="btn btn-ghost btn-xs" 
+                on:click={() => copyToClipboard(currentPayment.receiptCID)}
+                title="Copy CID"
+              >
+                📋
+              </button>
+            </div>
+            
+            <div class="flex gap-2">
+              <a 
+                href="/storage?cid={currentPayment.receiptCID}" 
+                class="btn btn-primary btn-sm"
+              >
+                <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3M3 17V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2z"></path>
+                </svg>
+                Download Receipt
+              </a>
+              <a 
+                href="/verify?cid={currentPayment.receiptCID}" 
+                class="btn btn-outline btn-sm"
+              >
+                <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.031 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path>
+                </svg>
+                Verify Receipt
+              </a>
+              <a 
+                href="https://ipfs.io/ipfs/{currentPayment.receiptCID}" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                class="btn btn-ghost btn-sm"
+              >
+                <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>
+                </svg>
+                View on IPFS
+              </a>
+            </div>
+          </div>
+        </div>
+      {:else}
+        <div class="divider"></div>
+        <div>
+          <h3 class="text-lg font-semibold mb-3">Receipt Storage</h3>
+          <div class="alert alert-warning">
+            <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 w-6 h-6" fill="none" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
+            </svg>
+            <div>
+              <div class="font-bold">Receipt not yet stored</div>
+              <div class="text-sm">The permanent receipt is being generated and will be available shortly.</div>
+            </div>
+          </div>
+        </div>
+      {/if}
+
+      <!-- ENS Names Section -->
+      {#if currentPayment.senderENS || currentPayment.recipientENS}
+        <div class="divider"></div>
+        <div>
+          <h3 class="text-lg font-semibold mb-3">ENS Names</h3>
+          <div class="grid md:grid-cols-2 gap-4">
+            {#if currentPayment.senderENS}
+              <div class="bg-base-200 rounded-lg p-3">
+                <div class="text-sm opacity-70">Sender ENS</div>
+                <div class="font-medium">{currentPayment.senderENS}</div>
+              </div>
+            {/if}
+            {#if currentPayment.recipientENS}
+              <div class="bg-base-200 rounded-lg p-3">
+                <div class="text-sm opacity-70">Recipient ENS</div>
+                <div class="font-medium">{currentPayment.recipientENS}</div>
+              </div>
+            {/if}
+          </div>
+        </div>
+      {/if}
+
+      <!-- Oracle Data Section -->
+      {#if currentPayment.oraclePrice && currentPayment.oraclePrice > 0n}
+        <div class="divider"></div>
+        <div>
+          <h3 class="text-lg font-semibold mb-3">Price Oracle Data</h3>
+          <div class="bg-base-200 rounded-lg p-3">
+            <div class="flex justify-between items-center">
+              <div>
+                <div class="font-medium">Exchange Rate at Payment</div>
+                <div class="text-sm opacity-70">Flare FTSO price feed</div>
+              </div>
+              <div class="font-mono font-bold">
+                ${(Number(currentPayment.oraclePrice) / 1e8).toFixed(2)}
+              </div>
+            </div>
+          </div>
+        </div>
+      {/if}
+
       <!-- Action Buttons -->
       <div class="divider"></div>
       <div class="flex gap-4 justify-center">
