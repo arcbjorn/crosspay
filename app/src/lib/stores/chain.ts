@@ -81,7 +81,7 @@ export const SUPPORTED_CHAINS: Record<number, ChainConfig> = {
     nativeCurrency: {
       name: 'Citrea Bitcoin',
       symbol: 'cBTC',
-      decimals: 18,
+      decimals: 8,
     },
     rpcUrls: ['https://rpc.testnet.citrea.xyz'],
     blockExplorers: [

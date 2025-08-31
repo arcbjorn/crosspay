@@ -13,7 +13,7 @@ export const citreaTestnet = defineChain({
   nativeCurrency: {
     name: 'Citrea Bitcoin',
     symbol: 'cBTC',
-    decimals: 18,
+    decimals: 8,
   },
   rpcUrls: {
     default: { http: ['https://rpc.testnet.citrea.xyz'] },

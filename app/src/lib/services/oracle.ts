@@ -34,8 +34,8 @@ export class OracleService {
   private wsConnection: WebSocket | null = null;
   private priceSubscriptions: Map<string, Set<(price: PriceData) => void>> = new Map();
 
-  constructor(baseUrl: string = 'http://localhost:3003') {
-    this.baseUrl = baseUrl;
+  constructor(baseUrl?: string) {
+    this.baseUrl = baseUrl || import.meta.env.VITE_ORACLE_URL || 'http://localhost:3003';
   }
 
   /**

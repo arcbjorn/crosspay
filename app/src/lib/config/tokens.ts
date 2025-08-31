@@ -77,7 +77,7 @@ export const SUPPORTED_TOKENS: ChainTokens = {
       address: NATIVE_TOKEN_ADDRESS,
       symbol: 'cBTC',
       name: 'Citrea Bitcoin',
-      decimals: 18,
+      decimals: 8,
       isNative: true,
       coingeckoId: 'bitcoin',
     },

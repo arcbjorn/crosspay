@@ -52,8 +52,8 @@ interface NetworkInfo {
 export class StorageService {
   private baseUrl: string;
 
-  constructor(baseUrl: string = 'http://localhost:3001') {
-    this.baseUrl = baseUrl.replace(/\/$/, ''); // Remove trailing slash
+  constructor(baseUrl?: string) {
+    this.baseUrl = (baseUrl || import.meta.env.VITE_STORAGE_URL || 'http://localhost:3001').replace(/\/$/, ''); // Remove trailing slash
   }
 
   /**

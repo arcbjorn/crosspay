@@ -1,5 +1,6 @@
 import { parseEther, formatEther, parseEventLogs, type Address } from 'viem';
 import { getPublicClient, getWalletClient, getContractAddress, PaymentCoreABI } from '../contracts';
+import { oracleService } from './oracle';
 import type { Payment, PaymentStatus } from '@types/contracts';
 
 export class PaymentService {
@@ -26,6 +27,17 @@ export class PaymentService {
     const totalValue = isETH ? parsedAmount + fee : 0n;
     
     try {
+      // Get price snapshot from oracle
+      let oraclePrice = 0n;
+      try {
+        const tokenSymbol = isETH ? 'ETH' : 'USDC'; // Default mapping
+        const priceData = await oracleService.getCurrentPrice(`${tokenSymbol}/USD`);
+        oraclePrice = BigInt(Math.round(priceData.price * 1e8)); // Convert to 8 decimal format
+      } catch (oracleError) {
+        console.warn('Failed to get oracle price:', oracleError);
+        // Continue without price snapshot
+      }
+
       // Handle ERC20 token approval if needed
       if (!isETH) {
         await this.approveTokenIfNeeded(token, parsedAmount + fee, senderAddress);
@@ -54,9 +66,21 @@ export class PaymentService {
       if (!parsedLogs.length) throw new Error('PaymentCreated event not found');
       const { args } = parsedLogs[0] as any;
 
+      const paymentId = (args.id ?? args.paymentId) as bigint;
+
+      // Set oracle price if we have one (owner-only function for demo)
+      if (oraclePrice > 0n) {
+        try {
+          await this.setOraclePrice(paymentId, oraclePrice, senderAddress);
+        } catch (oraclePriceError) {
+          console.warn('Failed to set oracle price:', oraclePriceError);
+          // Continue without setting price
+        }
+      }
+
       return {
         hash,
-        paymentId: (args.id ?? args.paymentId) as bigint,
+        paymentId,
       };
     } catch (error) {
       console.error('Payment creation failed:', error);
@@ -179,6 +203,27 @@ export class PaymentService {
 
   getContractAddress(): Address {
     return getContractAddress(this.chainId, 'PaymentCore');
+  }
+
+  async setOraclePrice(paymentId: bigint, price: bigint, senderAddress: Address): Promise<string> {
+    const walletClient = getWalletClient(this.chainId);
+    const publicClient = getPublicClient(this.chainId);
+    const contractAddress = getContractAddress(this.chainId, 'PaymentCore');
+
+    try {
+      const { request } = await publicClient.simulateContract({
+        address: contractAddress,
+        abi: PaymentCoreABI,
+        functionName: 'setOraclePrice',
+        args: [paymentId, price],
+        account: senderAddress,
+      });
+
+      return await walletClient.writeContract(request);
+    } catch (error) {
+      console.error('Failed to set oracle price:', error);
+      throw error;
+    }
   }
 
   private async approveTokenIfNeeded(

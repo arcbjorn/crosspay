@@ -29,8 +29,8 @@ interface SubnameResponse {
 export class ENSService {
   private baseUrl: string;
 
-  constructor(baseUrl: string = 'http://localhost:3002') {
-    this.baseUrl = baseUrl;
+  constructor(baseUrl?: string) {
+    this.baseUrl = baseUrl || import.meta.env.VITE_ENS_URL || 'http://localhost:3002';
   }
 
   /**
