@@ -6,6 +6,64 @@
   },
   {
     "type": "function",
+    "name": "CURRENT_VERSION",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "addSupportedFormat",
+    "inputs": [
+      {
+        "name": "format",
+        "type": "string",
+        "internalType": "string"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "addSupportedLanguage",
+    "inputs": [
+      {
+        "name": "language",
+        "type": "string",
+        "internalType": "string"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "contentHashToReceipt",
+    "inputs": [
+      {
+        "name": "",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "createReceipt",
     "inputs": [
       {
@@ -27,6 +85,31 @@
         "name": "isPublic",
         "type": "bool",
         "internalType": "bool"
+      },
+      {
+        "name": "language",
+        "type": "string",
+        "internalType": "string"
+      },
+      {
+        "name": "format",
+        "type": "string",
+        "internalType": "string"
+      },
+      {
+        "name": "contentHash",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      },
+      {
+        "name": "signature",
+        "type": "bytes",
+        "internalType": "bytes"
+      },
+      {
+        "name": "complianceFields",
+        "type": "string",
+        "internalType": "string"
       }
     ],
     "outputs": [
@@ -40,7 +123,63 @@
   },
   {
     "type": "function",
-    "name": "getReceipt",
+    "name": "findReceiptByContentHash",
+    "inputs": [
+      {
+        "name": "contentHash",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getCustomField",
+    "inputs": [
+      {
+        "name": "receiptId",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "key",
+        "type": "string",
+        "internalType": "string"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "string",
+        "internalType": "string"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getReceiptCount",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getReceiptMetadata",
     "inputs": [
       {
         "name": "receiptId",
@@ -52,7 +191,7 @@
       {
         "name": "",
         "type": "tuple",
-        "internalType": "struct ReceiptRegistry.Receipt",
+        "internalType": "struct ReceiptRegistry.ReceiptMetadata",
         "components": [
           {
             "name": "paymentId",
@@ -83,6 +222,36 @@
             "name": "isPublic",
             "type": "bool",
             "internalType": "bool"
+          },
+          {
+            "name": "language",
+            "type": "string",
+            "internalType": "string"
+          },
+          {
+            "name": "format",
+            "type": "string",
+            "internalType": "string"
+          },
+          {
+            "name": "version",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "contentHash",
+            "type": "bytes32",
+            "internalType": "bytes32"
+          },
+          {
+            "name": "verified",
+            "type": "bool",
+            "internalType": "bool"
+          },
+          {
+            "name": "complianceFields",
+            "type": "string",
+            "internalType": "string"
           }
         ]
       }
@@ -91,13 +260,19 @@
   },
   {
     "type": "function",
-    "name": "getReceiptCount",
-    "inputs": [],
+    "name": "getReceiptsByPaymentId",
+    "inputs": [
+      {
+        "name": "paymentId",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
     "outputs": [
       {
         "name": "",
-        "type": "uint256",
-        "internalType": "uint256"
+        "type": "uint256[]",
+        "internalType": "uint256[]"
       }
     ],
     "stateMutability": "view"
@@ -117,6 +292,57 @@
         "name": "",
         "type": "uint256[]",
         "internalType": "uint256[]"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getVerifiedReceiptsCount",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "isFormatSupported",
+    "inputs": [
+      {
+        "name": "format",
+        "type": "string",
+        "internalType": "string"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "bool",
+        "internalType": "bool"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "isLanguageSupported",
+    "inputs": [
+      {
+        "name": "language",
+        "type": "string",
+        "internalType": "string"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "bool",
+        "internalType": "bool"
       }
     ],
     "stateMutability": "view"
@@ -194,9 +420,70 @@
         "name": "isPublic",
         "type": "bool",
         "internalType": "bool"
+      },
+      {
+        "name": "language",
+        "type": "string",
+        "internalType": "string"
+      },
+      {
+        "name": "format",
+        "type": "string",
+        "internalType": "string"
+      },
+      {
+        "name": "version",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "contentHash",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      },
+      {
+        "name": "signature",
+        "type": "bytes",
+        "internalType": "bytes"
+      },
+      {
+        "name": "verified",
+        "type": "bool",
+        "internalType": "bool"
+      },
+      {
+        "name": "complianceFields",
+        "type": "string",
+        "internalType": "string"
       }
     ],
     "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "removeSupportedFormat",
+    "inputs": [
+      {
+        "name": "format",
+        "type": "string",
+        "internalType": "string"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "removeSupportedLanguage",
+    "inputs": [
+      {
+        "name": "language",
+        "type": "string",
+        "internalType": "string"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
   },
   {
     "type": "function",
@@ -204,6 +491,90 @@
     "inputs": [],
     "outputs": [],
     "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "setCustomField",
+    "inputs": [
+      {
+        "name": "receiptId",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "key",
+        "type": "string",
+        "internalType": "string"
+      },
+      {
+        "name": "value",
+        "type": "string",
+        "internalType": "string"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "shareReceipt",
+    "inputs": [
+      {
+        "name": "receiptId",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "recipient",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "shareType",
+        "type": "string",
+        "internalType": "string"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "supportedFormats",
+    "inputs": [
+      {
+        "name": "",
+        "type": "string",
+        "internalType": "string"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "bool",
+        "internalType": "bool"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "supportedLanguages",
+    "inputs": [
+      {
+        "name": "",
+        "type": "string",
+        "internalType": "string"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "bool",
+        "internalType": "bool"
+      }
+    ],
+    "stateMutability": "view"
   },
   {
     "type": "function",
@@ -266,6 +637,49 @@
       }
     ],
     "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "verifyReceipt",
+    "inputs": [
+      {
+        "name": "receiptId",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "contentHash",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "event",
+    "name": "CustomFieldSet",
+    "inputs": [
+      {
+        "name": "receiptId",
+        "type": "uint256",
+        "indexed": true,
+        "internalType": "uint256"
+      },
+      {
+        "name": "key",
+        "type": "string",
+        "indexed": false,
+        "internalType": "string"
+      },
+      {
+        "name": "value",
+        "type": "string",
+        "indexed": false,
+        "internalType": "string"
+      }
+    ],
+    "anonymous": false
   },
   {
     "type": "event",
@@ -338,6 +752,43 @@
         "type": "bool",
         "indexed": false,
         "internalType": "bool"
+      },
+      {
+        "name": "language",
+        "type": "string",
+        "indexed": false,
+        "internalType": "string"
+      },
+      {
+        "name": "format",
+        "type": "string",
+        "indexed": false,
+        "internalType": "string"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "ReceiptShared",
+    "inputs": [
+      {
+        "name": "receiptId",
+        "type": "uint256",
+        "indexed": true,
+        "internalType": "uint256"
+      },
+      {
+        "name": "sharedWith",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "shareType",
+        "type": "string",
+        "indexed": false,
+        "internalType": "string"
       }
     ],
     "anonymous": false
@@ -369,6 +820,31 @@
   },
   {
     "type": "event",
+    "name": "ReceiptVerified",
+    "inputs": [
+      {
+        "name": "receiptId",
+        "type": "uint256",
+        "indexed": true,
+        "internalType": "uint256"
+      },
+      {
+        "name": "verifier",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "contentHash",
+        "type": "bytes32",
+        "indexed": false,
+        "internalType": "bytes32"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
     "name": "Unpaused",
     "inputs": [
       {
@@ -379,6 +855,38 @@
       }
     ],
     "anonymous": false
+  },
+  {
+    "type": "error",
+    "name": "DuplicateContentHash",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "ECDSAInvalidSignature",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "ECDSAInvalidSignatureLength",
+    "inputs": [
+      {
+        "name": "length",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ]
+  },
+  {
+    "type": "error",
+    "name": "ECDSAInvalidSignatureS",
+    "inputs": [
+      {
+        "name": "s",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ]
   },
   {
     "type": "error",
@@ -398,6 +906,11 @@
   {
     "type": "error",
     "name": "InvalidReceiptId",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "InvalidSignature",
     "inputs": []
   },
   {
@@ -424,7 +937,22 @@
   },
   {
     "type": "error",
+    "name": "ReceiptAlreadyVerified",
+    "inputs": []
+  },
+  {
+    "type": "error",
     "name": "UnauthorizedAccess",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "UnsupportedFormat",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "UnsupportedLanguage",
     "inputs": []
   }
 ]
