@@ -11,11 +11,18 @@
     "test": "pnpm run test:contracts && pnpm run test:app",
     "test:contracts": "pnpm --filter contracts test",
     "test:app": "pnpm --filter app test",
-    "lint": "pnpm --recursive lint",
-    "format": "pnpm --recursive format",
+    "test:e2e": "pnpm --filter app test:e2e",
+    "test:e2e:ui": "pnpm --filter app test:e2e:ui",
+    "lint": "eslint . --ext .js,.ts,.tsx",
+    "lint:fix": "eslint . --ext .js,.ts,.tsx --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
     "typecheck": "pnpm --recursive typecheck",
     "deploy:lisk": "pnpm --filter contracts deploy:lisk",
-    "deploy:base": "pnpm --filter contracts deploy:base"
+    "deploy:base": "pnpm --filter contracts deploy:base",
+    "update-addresses:lisk": "node scripts/update-contract-addresses.js 4202",
+    "update-addresses:base": "node scripts/update-contract-addresses.js 84532",
+    "setup:deployment": "echo 'Please copy .env.example to .env and add your private key and API keys'"
   },
   "keywords": [
     "blockchain",
