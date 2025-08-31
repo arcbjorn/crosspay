@@ -2,15 +2,16 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"log"
 	"net/http"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
-	"github.com/gin-gonic/gin"
 	"github.com/arcbjorn/crosspay/storage-worker/pkg/filecoin"
 )
 
@@ -66,17 +67,28 @@ func initStorage() {
 	log.Printf("Storage service initialized with Filecoin network: %s", networkID)
 }
 
-func handleUpload(c *gin.Context) {
-	file, header, err := c.Request.FormFile("file")
+func handleUpload(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "POST" {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		json.NewEncoder(w).Encode(map[string]interface{}{"error": "Method not allowed"})
+		return
+	}
+
+	file, header, err := r.FormFile("file")
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "No file provided"})
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]interface{}{"error": "No file provided"})
 		return
 	}
 	defer file.Close()
 
 	data, err := io.ReadAll(file)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to read file"})
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]interface{}{"error": "Failed to read file"})
 		return
 	}
 
@@ -87,12 +99,14 @@ func handleUpload(c *gin.Context) {
 		PinToIPFS:    true,
 		Metadata: map[string]string{
 			"contentType": header.Header.Get("Content-Type"),
-			"uploader":    c.ClientIP(),
+			"uploader":    r.RemoteAddr,
 		},
 	})
 	if err != nil {
 		log.Printf("Filecoin upload failed: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Upload failed: %v", err)})
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]interface{}{"error": fmt.Sprintf("Upload failed: %v", err)})
 		return
 	}
 
@@ -103,13 +117,19 @@ func handleUpload(c *gin.Context) {
 		Timestamp: result.CreatedAt,
 	}
 
-	c.JSON(http.StatusOK, response)
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(response)
 }
 
-func handleRetrieve(c *gin.Context) {
-	cid := c.Param("cid")
+func handleRetrieve(w http.ResponseWriter, r *http.Request) {
+	// Extract CID from URL path
+	path := strings.TrimPrefix(r.URL.Path, "/api/storage/retrieve/")
+	cid := strings.TrimSuffix(path, "/")
 	if cid == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "CID required"})
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]interface{}{"error": "CID required"})
 		return
 	}
 
@@ -118,7 +138,9 @@ func handleRetrieve(c *gin.Context) {
 	result, err := storage.filecoinClient.Retrieve(ctx, cid)
 	if err != nil {
 		log.Printf("Filecoin retrieval failed: %v", err)
-		c.JSON(http.StatusNotFound, gin.H{"error": fmt.Sprintf("Retrieval failed: %v", err)})
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusNotFound)
+		json.NewEncoder(w).Encode(map[string]interface{}{"error": fmt.Sprintf("Retrieval failed: %v", err)})
 		return
 	}
 
@@ -131,14 +153,20 @@ func handleRetrieve(c *gin.Context) {
 		Timestamp:   result.RetrievedAt,
 	}
 
-	c.JSON(http.StatusOK, response)
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(response)
 }
 
-func handleCostEstimate(c *gin.Context) {
-	sizeStr := c.Param("size")
+func handleCostEstimate(w http.ResponseWriter, r *http.Request) {
+	// Extract size from URL path
+	path := strings.TrimPrefix(r.URL.Path, "/api/storage/cost/")
+	sizeStr := strings.TrimSuffix(path, "/")
 	size, err := strconv.ParseInt(sizeStr, 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid size parameter"})
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]interface{}{"error": "Invalid size parameter"})
 		return
 	}
 
@@ -157,28 +185,45 @@ func handleCostEstimate(c *gin.Context) {
 		USDEquiv:     calculateUSDEquivalent(cost),
 	}
 
-	c.JSON(http.StatusOK, response)
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(response)
 }
 
-func handleListFiles(c *gin.Context) {
+func handleListFiles(w http.ResponseWriter, r *http.Request) {
 	ctx := context.Background()
 	files, err := storage.filecoinClient.ListFiles(ctx, 50, 0) // Default limit and offset
 	if err != nil {
 		log.Printf("Failed to list files: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to list files"})
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]interface{}{"error": "Failed to list files"})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]interface{}{
 		"files": files,
 		"count": len(files),
 	})
 }
 
-func handlePinToIPFS(c *gin.Context) {
-	cid := c.Param("cid")
+func handlePinToIPFS(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "POST" {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		json.NewEncoder(w).Encode(map[string]interface{}{"error": "Method not allowed"})
+		return
+	}
+
+	// Extract CID from URL path
+	path := strings.TrimPrefix(r.URL.Path, "/api/storage/pin/")
+	cid := strings.TrimSuffix(path, "/")
 	if cid == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "CID required"})
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]interface{}{"error": "CID required"})
 		return
 	}
 
@@ -186,20 +231,28 @@ func handlePinToIPFS(c *gin.Context) {
 	err := storage.filecoinClient.PinToIPFS(ctx, cid)
 	if err != nil {
 		log.Printf("Failed to pin to IPFS: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to pin to IPFS"})
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]interface{}{"error": "Failed to pin to IPFS"})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]interface{}{
 		"message": "Successfully pinned to IPFS",
 		"cid":     cid,
 	})
 }
 
-func handleDealStatus(c *gin.Context) {
-	dealID := c.Param("dealId")
+func handleDealStatus(w http.ResponseWriter, r *http.Request) {
+	// Extract deal ID from URL path
+	path := strings.TrimPrefix(r.URL.Path, "/api/storage/deal-status/")
+	dealID := strings.TrimSuffix(path, "/")
 	if dealID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Deal ID required"})
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]interface{}{"error": "Deal ID required"})
 		return
 	}
 
@@ -207,23 +260,31 @@ func handleDealStatus(c *gin.Context) {
 	status, err := storage.filecoinClient.GetDealStatus(ctx, dealID)
 	if err != nil {
 		log.Printf("Failed to get deal status: %v", err)
-		c.JSON(http.StatusNotFound, gin.H{"error": "Deal not found"})
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusNotFound)
+		json.NewEncoder(w).Encode(map[string]interface{}{"error": "Deal not found"})
 		return
 	}
 
-	c.JSON(http.StatusOK, status)
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(status)
 }
 
-func handleNetworkInfo(c *gin.Context) {
+func handleNetworkInfo(w http.ResponseWriter, r *http.Request) {
 	ctx := context.Background()
 	info, err := storage.filecoinClient.GetNetworkInfo(ctx)
 	if err != nil {
 		log.Printf("Failed to get network info: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get network info"})
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]interface{}{"error": "Failed to get network info"})
 		return
 	}
 
-	c.JSON(http.StatusOK, info)
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(info)
 }
 
 // Removed deprecated mock functions - now using SynapseClient directly
