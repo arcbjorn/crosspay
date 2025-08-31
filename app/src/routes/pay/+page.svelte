@@ -61,7 +61,7 @@
         token as Address,
         amount,
         metadataURI || '',
-        wallet.account as Address
+        wallet.address as Address
       );
       
       success = `Payment created successfully! Payment ID: ${result.paymentId}`;

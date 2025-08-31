@@ -87,7 +87,7 @@
   };
   
   const loadPayments = async () => {
-    if (!wallet.isConnected || !wallet.account) {
+    if (!wallet.isConnected || !wallet.address) {
       loading = false;
       return;
     }
@@ -100,8 +100,8 @@
       
       // Get both sent and received payments
       const [sentPaymentIds, receivedPaymentIds] = await Promise.all([
-        paymentService.getUserPayments(wallet.account as Address, true),
-        paymentService.getUserPayments(wallet.account as Address, false),
+        paymentService.getUserPayments(wallet.address as Address, true),
+        paymentService.getUserPayments(wallet.address as Address, false),
       ]);
       
       // Fetch full payment details for all payment IDs
@@ -135,11 +135,11 @@
   };
   
   const handleCompletePayment = async (paymentId: number) => {
-    if (!wallet.account) return;
+    if (!wallet.address) return;
     
     try {
       const paymentService = new PaymentService(chain.id);
-      await paymentService.completePayment(BigInt(paymentId), wallet.account as Address);
+      await paymentService.completePayment(BigInt(paymentId), wallet.address as Address);
       await loadPayments(); // Reload payments
     } catch (err) {
       console.error('Failed to complete payment:', err);
@@ -147,11 +147,11 @@
   };
   
   const handleRefundPayment = async (paymentId: number) => {
-    if (!wallet.account) return;
+    if (!wallet.address) return;
     
     try {
       const paymentService = new PaymentService(chain.id);
-      await paymentService.refundPayment(BigInt(paymentId), wallet.account as Address);
+      await paymentService.refundPayment(BigInt(paymentId), wallet.address as Address);
       await loadPayments(); // Reload payments
     } catch (err) {
       console.error('Failed to refund payment:', err);
@@ -159,12 +159,12 @@
   };
   
   // Load payments when wallet connects or chain changes
-  $: if (wallet.isConnected && wallet.account) {
+  $: if (wallet.isConnected && wallet.address) {
     loadPayments();
   }
   
   onMount(() => {
-    if (wallet.isConnected && wallet.account) {
+    if (wallet.isConnected && wallet.address) {
       loadPayments();
     } else {
       loading = false;

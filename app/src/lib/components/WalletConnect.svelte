@@ -1,6 +1,6 @@
 <script lang="ts">
-  import { walletStore, connectWallet, disconnectWallet } from '$lib/stores/wallet';
-  import { chainStore, isChainSupported, switchChain } from '$lib/stores/chain';
+  import { walletStore, connectWallet, disconnectWallet, switchChain } from '$lib/stores/wallet';
+  import { chainStore, isChainSupported } from '$lib/stores/chain';
   
   $: wallet = $walletStore;
   $: chain = $chainStore;
