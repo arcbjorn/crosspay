@@ -253,3 +253,4 @@ export class PaymentService {
 // Export singleton instances for each supported chain
 export const liskPaymentService = new PaymentService(4202);
 export const basePaymentService = new PaymentService(84532);
+export const citreaPaymentService = new PaymentService(5115);
