@@ -205,13 +205,16 @@ contract IntegrationTest is Test {
         vm.deal(validator3, 20 ether);
         
         vm.prank(validator1);
-        relayValidator.registerValidator{value: 15 ether}();
+        uint256[4] memory blsKey1 = [uint256(1), uint256(2), uint256(3), uint256(4)];
+        relayValidator.registerValidator{value: 15 ether}(blsKey1);
         
         vm.prank(validator2);
-        relayValidator.registerValidator{value: 15 ether}();
+        uint256[4] memory blsKey2 = [uint256(5), uint256(6), uint256(7), uint256(8)];
+        relayValidator.registerValidator{value: 15 ether}(blsKey2);
         
         vm.prank(validator3);
-        relayValidator.registerValidator{value: 15 ether}();
+        uint256[4] memory blsKey3 = [uint256(9), uint256(10), uint256(11), uint256(12)];
+        relayValidator.registerValidator{value: 15 ether}(blsKey3);
     }
 
     function _setupUsers() internal {

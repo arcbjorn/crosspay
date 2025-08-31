@@ -200,7 +200,7 @@ contract BatchOperationsTest is Test {
         batchOps.batchCompletePayments(paymentIds);
     }
     
-    function testEstimateBatchGas() public view {
+    function testEstimateBatchGas() public {
         BatchOperations.BatchPayment[] memory payments = new BatchOperations.BatchPayment[](3);
         
         uint256 gasEstimate = batchOps.estimateBatchGas(payments);

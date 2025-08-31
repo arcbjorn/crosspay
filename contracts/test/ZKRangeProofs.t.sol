@@ -12,7 +12,7 @@ contract ZKRangeProofsTest is Test {
         // Initialize TFHE if needed
     }
     
-    function testGenerateRangeCommitment() public pure {
+    function testGenerateRangeCommitment() public {
         // Mock encrypted value (in real implementation this would be properly encrypted)
         euint256 encryptedValue = TFHE.asEuint256(100);
         uint256 minValue = 50;

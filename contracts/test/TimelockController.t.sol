@@ -49,7 +49,7 @@ contract TimelockControllerTest is Test {
         vm.label(user, "User");
     }
     
-    function testInitialState() public view {
+    function testInitialState() public {
         assertEq(timelock.getMinDelay(), 24 hours);
         assertTrue(timelock.hasRole(PROPOSER_ROLE, proposer));
         assertTrue(timelock.hasRole(EXECUTOR_ROLE, executor));
