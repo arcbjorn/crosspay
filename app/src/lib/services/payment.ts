@@ -1,6 +1,7 @@
-import { parseEther, formatEther, parseEventLogs, type Address } from 'viem';
+import { parseEther, formatEther, parseEventLogs, type Address, parseUnits, formatUnits } from 'viem';
 import { getPublicClient, getWalletClient, getContractAddress, PaymentCoreABI } from '@contracts';
 import { oracleService } from '@services/oracle';
+import { getTokenInfo, isNativeToken } from '@config/tokens';
 import type { Payment, PaymentStatus } from '@packages/types/contracts';
 
 export class PaymentService {
@@ -19,21 +20,25 @@ export class PaymentService {
     const publicClient = getPublicClient(this.chainId);
     const contractAddress = getContractAddress(this.chainId, 'PaymentCore');
 
-    // Parse amount (ETH has 18 decimals)
-    const parsedAmount = parseEther(amount);
-    const isETH = token === '0x0000000000000000000000000000000000000000';
+    // Get token info to determine decimals
+    const tokenInfo = getTokenInfo(this.chainId, token);
+    const decimals = tokenInfo?.decimals || 18; // Default to 18 if token not found
+    const isNativeToken_ = isNativeToken(token);
+    
+    // Parse amount with correct decimals
+    const parsedAmount = parseUnits(amount, decimals);
     // Protocol fee: 10 bps (0.1%)
     const fee = (parsedAmount * 10n) / 10000n;
-    const totalValue = isETH ? parsedAmount + fee : 0n;
+    const totalValue = isNativeToken_ ? parsedAmount + fee : 0n;
     
     try {
       // Get price snapshot from oracle
-      let oraclePrice = 0n;
+      let oraclePrice = '0';
       try {
-        const tokenSymbol = isETH ? 'ETH' : 'USDC'; // Default mapping
+        const tokenSymbol = tokenInfo?.symbol || 'ETH'; // Use actual token symbol
         const priceData = await oracleService.getCurrentPrice(`${tokenSymbol}/USD`);
         if (priceData) {
-          oraclePrice = BigInt(Math.round(priceData.price * 1e8)); // Convert to 8 decimal format
+          oraclePrice = priceData.price.toString(); // Store as string
         }
       } catch (oracleError) {
         console.warn('Failed to get oracle price:', oracleError);
@@ -41,7 +46,7 @@ export class PaymentService {
       }
 
       // Handle ERC20 token approval if needed
-      if (!isETH) {
+      if (!isNativeToken_) {
         await this.approveTokenIfNeeded(token, parsedAmount + fee, senderAddress);
       }
       const { request } = await publicClient.simulateContract({
@@ -71,9 +76,9 @@ export class PaymentService {
       const paymentId = (args.id ?? args.paymentId) as bigint;
 
       // Set oracle price if we have one (owner-only function for demo)
-      if (oraclePrice > 0n) {
+      if (parseFloat(oraclePrice) > 0) {
         try {
-          await this.setOraclePrice(paymentId, oraclePrice, senderAddress);
+          await this.setOraclePrice(paymentId, BigInt(Math.round(parseFloat(oraclePrice) * 1e8)), senderAddress);
         } catch (oraclePriceError) {
           console.warn('Failed to set oracle price:', oraclePriceError);
           // Continue without setting price
@@ -119,7 +124,7 @@ export class PaymentService {
         receiptCID: arr[10] as string,
         senderENS: arr[11] as string,
         recipientENS: arr[12] as string,
-        oraclePrice: BigInt(arr[13] as string || '0'),
+        oraclePrice: (arr[13] as bigint).toString(),
         randomSeed: arr[14] as string,
       };
     } catch (error) {
@@ -199,8 +204,13 @@ export class PaymentService {
     }
   }
 
-  formatAmount(amount: bigint): string {
-    return formatEther(amount);
+  formatAmount(amount: bigint, tokenAddress?: Address): string {
+    if (tokenAddress) {
+      const tokenInfo = getTokenInfo(this.chainId, tokenAddress);
+      const decimals = tokenInfo?.decimals || 18;
+      return formatUnits(amount, decimals);
+    }
+    return formatEther(amount); // Default to ETH formatting
   }
 
   getContractAddress(): Address {
