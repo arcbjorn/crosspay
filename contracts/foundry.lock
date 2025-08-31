@@ -1,4 +1,10 @@
 {
+  "lib/fhevm-solidity": {
+    "tag": {
+      "name": "v0.6.2",
+      "rev": "c90044bbe594af26bcaac0b6224eea2c54817c18"
+    }
+  },
   "lib/openzeppelin-contracts": {
     "tag": {
       "name": "v5.1.0",
