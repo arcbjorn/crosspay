@@ -1,4 +1,7 @@
 import { writable } from 'svelte/store';
+import { connect, disconnect, switchChain as wagmiSwitchChain, getAccount, getChainId, getBalance } from 'wagmi/actions';
+import { walletConnect, metaMask } from 'wagmi/connectors';
+import { wagmiConfig } from '$lib/wagmi';
 import type { Address } from 'viem';
 
 export interface WalletState {
@@ -17,40 +20,52 @@ const initialState: WalletState = {
 
 export const walletStore = writable<WalletState>(initialState);
 
-export const connectWallet = async () => {
+// Update store with current wagmi state
+function updateStoreFromWagmi() {
+  const account = getAccount(wagmiConfig);
+  const chainId = getChainId(wagmiConfig);
+  
+  walletStore.update(state => ({
+    ...state,
+    isConnected: account.isConnected,
+    address: account.address,
+    chainId: chainId,
+    isConnecting: false,
+  }));
+
+  // Get balance if connected
+  if (account.address) {
+    getBalance(wagmiConfig, { address: account.address })
+      .then(balance => {
+        walletStore.update(state => ({ ...state, balance: balance.value }));
+      })
+      .catch(console.error);
+  }
+}
+
+export const connectWallet = async (preferredConnector?: 'metamask' | 'walletconnect') => {
   walletStore.update(state => ({ ...state, isConnecting: true, error: undefined }));
   
   try {
-    if (!window.ethereum) {
-      throw new Error('No wallet detected. Please install MetaMask or another Ethereum wallet.');
+    let connector;
+    
+    if (preferredConnector === 'walletconnect') {
+      connector = walletConnect({ 
+        projectId: import.meta.env.VITE_WALLETCONNECT_PROJECT_ID || 'demo-project-id',
+        metadata: {
+          name: 'CrossPay Protocol',
+          description: 'Verifiable, private, cross-chain payments',
+          url: 'https://crosspay.protocol',
+          icons: ['https://crosspay.protocol/favicon.svg']
+        }
+      });
+    } else {
+      // Default to MetaMask
+      connector = metaMask();
     }
 
-    const accounts = await window.ethereum.request({
-      method: 'eth_requestAccounts'
-    });
-
-    if (accounts.length === 0) {
-      throw new Error('No accounts found');
-    }
-
-    const chainId = await window.ethereum.request({
-      method: 'eth_chainId'
-    });
-
-    const balance = await window.ethereum.request({
-      method: 'eth_getBalance',
-      params: [accounts[0], 'latest']
-    });
-
-    walletStore.update(state => ({
-      ...state,
-      isConnected: true,
-      address: accounts[0] as Address,
-      chainId: parseInt(chainId, 16),
-      balance: BigInt(balance),
-      isConnecting: false,
-      error: undefined
-    }));
+    await connect(wagmiConfig, { connector });
+    updateStoreFromWagmi();
 
   } catch (error) {
     console.error('Wallet connection error:', error);
@@ -62,53 +77,30 @@ export const connectWallet = async () => {
   }
 };
 
-export const disconnectWallet = () => {
-  walletStore.set(initialState);
+export const disconnectWallet = async () => {
+  try {
+    await disconnect(wagmiConfig);
+    walletStore.set(initialState);
+  } catch (error) {
+    console.error('Disconnect error:', error);
+    walletStore.set(initialState);
+  }
 };
 
 export const switchChain = async (chainId: number) => {
   try {
-    await window.ethereum.request({
-      method: 'wallet_switchEthereumChain',
-      params: [{ chainId: `0x${chainId.toString(16)}` }],
-    });
+    await wagmiSwitchChain(wagmiConfig, { chainId });
+    updateStoreFromWagmi();
   } catch (error: any) {
-    if (error.code === 4902) {
-      // Chain not added, need to add it first
-      throw new Error(`Chain ${chainId} not found in wallet. Please add it manually.`);
-    }
+    console.error('Chain switch error:', error);
     throw error;
   }
 };
 
-// Listen for account changes
-if (typeof window !== 'undefined' && window.ethereum) {
-  window.ethereum.on('accountsChanged', (accounts: string[]) => {
-    if (accounts.length === 0) {
-      disconnectWallet();
-    } else {
-      walletStore.update(state => ({
-        ...state,
-        address: accounts[0] as Address
-      }));
-    }
-  });
-
-  window.ethereum.on('chainChanged', (chainId: string) => {
-    walletStore.update(state => ({
-      ...state,
-      chainId: parseInt(chainId, 16)
-    }));
-  });
+// Initialize store on load
+if (typeof window !== 'undefined') {
+  updateStoreFromWagmi();
 }
 
-// Type augmentation for window.ethereum
-declare global {
-  interface Window {
-    ethereum?: {
-      request: (args: { method: string; params?: any[] }) => Promise<any>;
-      on: (event: string, callback: (...args: any[]) => void) => void;
-      removeListener: (event: string, callback: (...args: any[]) => void) => void;
-    };
-  }
-}
+// Export function to manually update store (called by wagmi provider)
+export { updateStoreFromWagmi };
