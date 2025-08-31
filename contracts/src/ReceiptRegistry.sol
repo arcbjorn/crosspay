@@ -4,9 +4,11 @@ pragma solidity ^0.8.24;
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/Pausable.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
 
 contract ReceiptRegistry is Ownable, Pausable {
     using ECDSA for bytes32;
+    using MessageHashUtils for bytes32;
     
     struct Receipt {
         uint256 paymentId;
