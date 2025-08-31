@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { StorageService } from '../storage';
+import { StorageService } from '@services/storage';
 
 // Mock fetch
 global.fetch = vi.fn();
@@ -29,7 +29,7 @@ describe('StorageService', () => {
       const file = new File(['test content'], 'test.json', { type: 'application/json' });
       const result = await storageService.uploadFile(file);
 
-      expect(fetch).toHaveBeenCalledWith('http://localhost:3001/upload', {
+      expect(fetch).toHaveBeenCalledWith('http://localhost:3001/api/storage/upload', {
         method: 'POST',
         body: expect.any(FormData),
       });
