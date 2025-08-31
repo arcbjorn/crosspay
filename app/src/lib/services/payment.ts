@@ -1,4 +1,4 @@
-import { parseEther, parseUnits, formatEther, type Address } from 'viem';
+import { parseEther, formatEther, parseEventLogs, type Address } from 'viem';
 import { getPublicClient, getWalletClient, getContractAddress, PaymentCoreABI } from '../contracts';
 import type { Payment, PaymentStatus } from '../../../packages/types/contracts';
 
@@ -16,11 +16,12 @@ export class PaymentService {
     const publicClient = getPublicClient(this.chainId);
     const contractAddress = getContractAddress(this.chainId, 'PaymentCore');
 
-    // Parse amount based on token (ETH has 18 decimals)
+    // Parse amount (ETH has 18 decimals)
     const parsedAmount = parseEther(amount);
-
-    // For ETH payments, send value along with the transaction
     const isETH = token === '0x0000000000000000000000000000000000000000';
+    // Protocol fee: 10 bps (0.1%)
+    const fee = (parsedAmount * 10n) / 10000n;
+    const totalValue = isETH ? parsedAmount + fee : 0n;
     
     try {
       const { request } = await publicClient.simulateContract({
@@ -29,33 +30,27 @@ export class PaymentService {
         functionName: 'createPayment',
         args: [recipient, token, parsedAmount, metadataURI],
         account: senderAddress,
-        value: isETH ? parsedAmount : 0n,
+        value: totalValue,
       });
 
       const hash = await walletClient.writeContract(request);
 
       // Wait for transaction receipt to get payment ID
       const receipt = await publicClient.waitForTransactionReceipt({ hash });
-      
-      // Find PaymentCreated event to get payment ID
-      const paymentCreatedLog = receipt.logs.find(log => 
-        log.address.toLowerCase() === contractAddress.toLowerCase()
-      );
 
-      if (!paymentCreatedLog) {
-        throw new Error('PaymentCreated event not found');
-      }
-
-      // Decode the event log to get payment ID
-      const { args } = await publicClient.parseEventLogs({
+      // Parse PaymentCreated event to get payment ID
+      const parsedLogs = parseEventLogs({
         abi: PaymentCoreABI,
-        logs: [paymentCreatedLog],
+        logs: receipt.logs,
         eventName: 'PaymentCreated'
-      })[0];
+      });
+
+      if (!parsedLogs.length) throw new Error('PaymentCreated event not found');
+      const { args } = parsedLogs[0] as any;
 
       return {
         hash,
-        paymentId: args.paymentId as bigint,
+        paymentId: (args.id ?? args.paymentId) as bigint,
       };
     } catch (error) {
       console.error('Payment creation failed:', error);
@@ -68,25 +63,27 @@ export class PaymentService {
     const contractAddress = getContractAddress(this.chainId, 'PaymentCore');
 
     try {
-      const result = await publicClient.readContract({
+      const result = (await publicClient.readContract({
         address: contractAddress,
         abi: PaymentCoreABI,
         functionName: 'getPayment',
         args: [paymentId],
-      }) as any[];
+      })) as any;
 
-      // Map the contract result to our Payment interface
+      // Map the contract result (tuple) to our Payment interface
+      // Struct order: id, sender, recipient, token, amount, fee, status, createdAt, completedAt, metadataURI
+      const arr = Array.isArray(result) ? (result as any[]) : (Object.values(result) as any[]);
       return {
         id: paymentId,
-        sender: result[0] as Address,
-        recipient: result[1] as Address,
-        token: result[2] as Address,
-        amount: result[3] as bigint,
-        fee: result[4] as bigint,
-        status: this.mapStatus(result[5] as number),
-        createdAt: result[6] as bigint,
-        completedAt: result[7] as bigint,
-        metadataURI: result[8] as string,
+        sender: arr[1] as Address,
+        recipient: arr[2] as Address,
+        token: arr[3] as Address,
+        amount: arr[4] as bigint,
+        fee: arr[5] as bigint,
+        status: this.mapStatus(Number(arr[6] ?? 0)),
+        createdAt: arr[7] as bigint,
+        completedAt: arr[8] as bigint,
+        metadataURI: arr[9] as string,
       };
     } catch (error) {
       console.error('Failed to get payment:', error);
@@ -144,7 +141,7 @@ export class PaymentService {
       const result = await publicClient.readContract({
         address: contractAddress,
         abi: PaymentCoreABI,
-        functionName: sent ? 'getSentPayments' : 'getReceivedPayments',
+        functionName: sent ? 'getSenderPayments' : 'getRecipientPayments',
         args: [userAddress],
       }) as bigint[];
 
