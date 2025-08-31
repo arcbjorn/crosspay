@@ -27,7 +27,7 @@ import PaymentCoreABI from '../abis/PaymentCore.json';
 import ReceiptRegistryABI from '../abis/ReceiptRegistry.json';
 import FlareOracleABI from '../abis/FlareOracle.json';
 import SubnameRegistryABI from '../abis/SubnameRegistry.json';
-import type { ChainConfig } from '../stores/chain';
+import type { ChainConfig } from '@stores/chain';
 
 // Contract addresses - these will be updated after deployment
 const CONTRACT_ADDRESSES: Record<number, {

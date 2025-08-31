@@ -1,7 +1,7 @@
 import type { Address } from 'viem';
 import { parseUnits, formatUnits } from 'viem';
-import { getPublicClient, getWalletClient } from '../contracts';
-import type { TokenInfo } from '../config/tokens';
+import { getPublicClient, getWalletClient } from '@contracts';
+import type { TokenInfo } from '@config/tokens';
 
 // Standard ERC20 ABI (minimal required functions)
 const ERC20_ABI = [
