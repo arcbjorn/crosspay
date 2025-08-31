@@ -7,6 +7,7 @@ import "@openzeppelin/contracts/utils/Pausable.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
 import "./TimelockController.sol";
+import "./BLSSignatureAggregator.sol";
 
 contract RelayValidator is ReentrancyGuard, Ownable, Pausable {
     using ECDSA for bytes32;
@@ -42,6 +43,7 @@ contract RelayValidator is ReentrancyGuard, Ownable, Pausable {
         uint256 validationCount;
         uint256 slashCount;
         bool isSlashed;
+        uint256[4] blsPublicKey; // BLS public key (G2 point: 4 uint256 values)
     }
 
     struct ValidationRequest {
@@ -130,6 +132,7 @@ contract RelayValidator is ReentrancyGuard, Ownable, Pausable {
     error InsufficientSignatures();
     error MessageAlreadyProcessed();
     error InvalidSignature();
+    error InvalidBLSPublicKey();
     error SlashingFailed();
 
     constructor() Ownable(msg.sender) {}
@@ -146,12 +149,18 @@ contract RelayValidator is ReentrancyGuard, Ownable, Pausable {
         _;
     }
 
-    function registerValidator() external payable {
+    function registerValidator(uint256[4] calldata blsPublicKey) external payable {
         if (msg.value < MIN_STAKE) {
             revert InsufficientStake();
         }
         if (validators[msg.sender].validatorAddress != address(0)) {
             revert ValidatorAlreadyRegistered();
+        }
+        
+        // Validate BLS public key
+        BLS12381.G2Point memory pubKey = BLSSignatureAggregator.convertPublicKey(blsPublicKey);
+        if (!BLSSignatureAggregator.isValidPublicKeyG2(pubKey)) {
+            revert InvalidBLSPublicKey();
         }
 
         validators[msg.sender] = Validator({
@@ -162,7 +171,8 @@ contract RelayValidator is ReentrancyGuard, Ownable, Pausable {
             lastActivity: block.timestamp,
             validationCount: 0,
             slashCount: 0,
-            isSlashed: false
+            isSlashed: false,
+            blsPublicKey: blsPublicKey
         });
 
         validatorStakes[msg.sender] = msg.value;
@@ -236,11 +246,24 @@ contract RelayValidator is ReentrancyGuard, Ownable, Pausable {
             revert AlreadySigned();
         }
 
-        bytes32 messageHash = request.messageHash.toEthSignedMessageHash();
-        address recoveredSigner = messageHash.recover(signature);
+        // Verify BLS signature first
+        bool isValidBLS = false;
+        if (signature.length >= 48) {
+            BLS12381.G1Point memory sigPoint = BLSSignatureAggregator.parseSignature(signature);
+            BLS12381.G2Point memory pubKey = BLSSignatureAggregator.convertPublicKey(
+                validators[msg.sender].blsPublicKey
+            );
+            isValidBLS = BLSSignatureAggregator.verifySingle(sigPoint, request.messageHash, pubKey);
+        }
         
-        if (recoveredSigner != msg.sender) {
-            revert InvalidSignature();
+        // Fallback to ECDSA verification if BLS fails
+        if (!isValidBLS) {
+            bytes32 ethSignedHash = request.messageHash.toEthSignedMessageHash();
+            address recoveredSigner = ethSignedHash.recover(signature);
+            
+            if (recoveredSigner != msg.sender) {
+                revert InvalidSignature();
+            }
         }
 
         request.hasSigned[msg.sender] = true;
@@ -288,18 +311,35 @@ contract RelayValidator is ReentrancyGuard, Ownable, Pausable {
     function _aggregateSignatures(uint256 requestId) internal view returns (bytes memory) {
         ValidationRequest storage request = validationRequests[requestId];
         
-        bytes memory aggregated = new bytes(65 * request.signers.length);
-        uint256 offset = 0;
-
-        for (uint256 i = 0; i < request.signers.length; i++) {
-            bytes memory sig = request.signatures[request.signers[i]];
-            for (uint256 j = 0; j < sig.length; j++) {
-                aggregated[offset + j] = sig[j];
-            }
-            offset += sig.length;
+        // Get signatures array
+        bytes[] memory signatureBytes = _getSignatureArray(requestId);
+        
+        if (signatureBytes.length == 0) {
+            return new bytes(0);
         }
 
-        return aggregated;
+        // Convert bytes to BLS signatures
+        BLSSignatureAggregator.Signature[] memory signatures = 
+            new BLSSignatureAggregator.Signature[](signatureBytes.length);
+        BLS12381.G2Point[] memory publicKeys = 
+            new BLS12381.G2Point[](signatureBytes.length);
+        
+        for (uint256 i = 0; i < signatureBytes.length; i++) {
+            signatures[i] = BLSSignatureAggregator.Signature({
+                point: BLSSignatureAggregator.parseSignatureFromMemory(signatureBytes[i]),
+                messageHash: request.messageHash,
+                signer: request.signers[i]
+            });
+            publicKeys[i] = BLSSignatureAggregator.convertPublicKey(
+                validators[request.signers[i]].blsPublicKey
+            );
+        }
+
+        // Aggregate signatures using BLS
+        BLSSignatureAggregator.AggregationResult memory result = 
+            BLSSignatureAggregator.aggregateSignatures(signatures, request.messageHash, publicKeys);
+        
+        return BLSSignatureAggregator.encodeAggregatedSignature(result);
     }
 
     function _getSignatureArray(uint256 requestId) internal view returns (bytes[] memory) {
@@ -447,6 +487,65 @@ contract RelayValidator is ReentrancyGuard, Ownable, Pausable {
 
     function setHighValueThreshold(uint256 newThreshold) external onlyTimelockOrOwner {
         highValueThreshold = newThreshold;
+    }
+
+    /**
+     * @dev Verify aggregated BLS signature for a validation request
+     * @param requestId The validation request ID
+     * @return bool indicating if the aggregated signature is valid
+     */
+    function verifyAggregatedSignature(uint256 requestId) external view returns (bool) {
+        ValidationRequest storage request = validationRequests[requestId];
+        
+        if (request.status != ValidationStatus.Completed) {
+            return false;
+        }
+        
+        if (request.aggregatedSignature.length == 0) {
+            return false;
+        }
+
+        // Decode the aggregated signature
+        BLSSignatureAggregator.AggregationResult memory result = 
+            BLSSignatureAggregator.decodeAggregatedSignature(request.aggregatedSignature);
+            
+        if (!result.isValid) {
+            return false;
+        }
+
+        // Get public keys of signers
+        BLS12381.G2Point[] memory publicKeys = 
+            new BLS12381.G2Point[](request.signers.length);
+        for (uint256 i = 0; i < request.signers.length; i++) {
+            publicKeys[i] = BLSSignatureAggregator.convertPublicKey(
+                validators[request.signers[i]].blsPublicKey
+            );
+        }
+
+        // Verify the aggregated signature
+        return BLSSignatureAggregator.verifyAggregated(
+            result.aggregatedSignature,
+            request.messageHash,
+            publicKeys
+        );
+    }
+
+    /**
+     * @dev Get BLS public key for a validator
+     * @param validator The validator address
+     * @return uint256[4] The BLS public key (G2 point)
+     */
+    function getValidatorBLSPublicKey(address validator) external view returns (uint256[4] memory) {
+        return validators[validator].blsPublicKey;
+    }
+
+    /**
+     * @dev Check if validator count meets BFT threshold
+     * @param signatureCount Number of received signatures
+     * @return bool true if threshold is met
+     */
+    function meetsBFTThreshold(uint256 signatureCount) external view returns (bool) {
+        return BLSSignatureAggregator.meetsBFTThreshold(signatureCount, activeValidators.length);
     }
 
     function getValidationCount() external view returns (uint256) {
