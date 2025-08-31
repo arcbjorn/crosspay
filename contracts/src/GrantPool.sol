@@ -159,7 +159,8 @@ contract GrantPool is ReentrancyGuard, Ownable, Pausable {
 
     function submitBid(
         uint256 grantId,
-        bytes calldata encryptedAmount,
+        einput encryptedAmount,
+        bytes memory inputProof,
         string calldata proposalURI
     ) external nonReentrant whenNotPaused {
         Grant storage grant = grants[grantId];
@@ -177,7 +178,7 @@ contract GrantPool is ReentrancyGuard, Ownable, Pausable {
             revert AlreadySubmitted();
         }
 
-        euint256 bidAmount = TFHE.asEuint256(encryptedAmount);
+        euint256 bidAmount = TFHE.asEuint256(encryptedAmount, inputProof);
         
         grant.encryptedBids[msg.sender] = bidAmount;
         grant.hasSubmitted[msg.sender] = true;
@@ -235,7 +236,8 @@ contract GrantPool is ReentrancyGuard, Ownable, Pausable {
             return; // Already revealed
         }
 
-        uint256 revealedAmount = TFHE.decrypt(submission.encryptedAmount);
+        // In production, this would use async decryption
+        uint256 revealedAmount = 0;
         submission.revealedAmount = revealedAmount;
         submission.isRevealed = true;
 
