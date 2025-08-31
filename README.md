@@ -1,6 +1,7 @@
 # CrossPay Protocol
 
-Verifiable, private, cross-chain payment infrastructure targeting 9 blockchain networks with unified architecture.
+Verifiable, private, cross-chain payment infrastructure.
+Built during [Aleph Hackathon](https://dorahacks.io/hackathon/aleph-hackathon/detail).
 
 ## Overview
 
@@ -8,10 +9,10 @@ CrossPay enables secure payments across multiple chains with privacy preservatio
 
 ## 🏗️ Implementation Status
 
-**✅ Core Infrastructure**: Payment processing, storage, oracles  
+**✅ Core Infrastructure**: Payment processing, storage, oracles
 **✅ Advanced Security**: Privacy, validation, risk management
 - **Privacy Layer**: Zama FHE encrypted payments with selective disclosure
-- **Validator Network**: Symbiotic consensus with BFT validation  
+- **Validator Network**: Symbiotic consensus with BFT validation
 - **Risk Management**: Multi-tranche vault with slashing protection
 - **Analytics System**: Real-time monitoring and metrics
 
