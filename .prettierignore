@@ -1,0 +1,42 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build outputs
+dist/
+build/
+out/
+.svelte-kit/
+.next/
+
+# Generated files
+*.min.js
+*.min.css
+coverage/
+*.tsbuildinfo
+
+# Package managers
+pnpm-lock.yaml
+yarn.lock
+package-lock.json
+
+# Contracts
+contracts/lib/
+contracts/cache/
+contracts/out/
+deployments/*.json
+
+# IDE
+.vscode/
+.idea/
+
+# Env files
+.env*
+!.env.example
+
+# Logs
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
