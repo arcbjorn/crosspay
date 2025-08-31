@@ -4,6 +4,7 @@
   import { walletStore } from '@stores/wallet';
   import { chainStore, getChain } from '@stores/chain';
   import { PaymentService } from '@services/payment';
+  import { getTokenInfo } from '@config/tokens';
   import { onMount } from 'svelte';
   import type { Payment } from '@types/contracts';
   import type { Address } from 'viem';
@@ -49,12 +50,15 @@
       const paymentService = new PaymentService(chain.id);
       const paymentData = await paymentService.getPayment(BigInt(paymentId));
       
+      // Get token info for proper symbol
+      const tokenInfo = getTokenInfo(chain.id, paymentData.token);
+      
       // Format payment for display
       payment = {
         ...paymentData,
-        amount: paymentService.formatAmount(paymentData.amount),
-        fee: paymentService.formatAmount(paymentData.fee),
-        token: paymentData.token === '0x0000000000000000000000000000000000000000' ? 'ETH' : 'TOKEN',
+        amount: paymentService.formatAmount(paymentData.amount, paymentData.token),
+        fee: paymentService.formatAmount(paymentData.fee, paymentData.token),
+        token: tokenInfo?.symbol || 'TOKEN',
         createdAt: Number(paymentData.createdAt) * 1000,
         completedAt: paymentData.completedAt > 0n ? Number(paymentData.completedAt) * 1000 : null,
         chainId: chain.id,
@@ -475,7 +479,7 @@
       {/if}
 
       <!-- Oracle Data Section -->
-      {#if currentPayment.oraclePrice && currentPayment.oraclePrice > 0n}
+      {#if currentPayment.oraclePrice && parseFloat(currentPayment.oraclePrice) > 0}
         <div class="divider"></div>
         <div>
           <h3 class="text-lg font-semibold mb-3">Price Oracle Data</h3>
@@ -486,7 +490,7 @@
                 <div class="text-sm opacity-70">Flare FTSO price feed</div>
               </div>
               <div class="font-mono font-bold">
-                ${(Number(currentPayment.oraclePrice) / 1e8).toFixed(2)}
+                ${parseFloat(currentPayment.oraclePrice).toFixed(2)}
               </div>
             </div>
           </div>
