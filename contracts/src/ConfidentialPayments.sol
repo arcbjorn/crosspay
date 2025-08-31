@@ -426,8 +426,7 @@ contract ConfidentialPayments is ReentrancyGuard, AccessControl, Pausable {
         address to,
         euint256 encryptedAmount
     ) internal {
-        // In production, this would use async decryption
-        uint256 amount = 0;
+        uint256 amount = TFHE.decrypt(encryptedAmount);
         (bool success, ) = to.call{value: amount}("");
         require(success, "ETH transfer failed");
     }
@@ -438,8 +437,7 @@ contract ConfidentialPayments is ReentrancyGuard, AccessControl, Pausable {
         euint256 encryptedAmount,
         address token
     ) internal {
-        // In production, this would use async decryption
-        uint256 amount = 0;
+        uint256 amount = TFHE.decrypt(encryptedAmount);
         if (from == address(this)) {
             IERC20(token).safeTransfer(to, amount);
         } else {
