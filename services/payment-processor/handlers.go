@@ -8,9 +8,8 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
-
-	"github.com/gin-gonic/gin"
 )
 
 // Service clients (would be properly initialized with HTTP clients)
@@ -21,18 +20,34 @@ var (
 )
 
 // Payment handlers
-func handleCreatePayment(c *gin.Context) {
+func handleCreatePayment(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "POST" {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		json.NewEncoder(w).Encode(map[string]interface{}{"error": "Method not allowed"})
+		return
+	}
+
 	var request struct {
-		Recipient    string `json:"recipient" binding:"required"`
-		Token        string `json:"token" binding:"required"`
-		Amount       string `json:"amount" binding:"required"`
+		Recipient    string `json:"recipient"`
+		Token        string `json:"token"`
+		Amount       string `json:"amount"`
 		MetadataURI  string `json:"metadata_uri"`
 		SenderENS    string `json:"sender_ens"`
 		RecipientENS string `json:"recipient_ens"`
 	}
 
-	if err := c.ShouldBindJSON(&request); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
+	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]interface{}{"error": "Invalid request format"})
+		return
+	}
+
+	if request.Recipient == "" || request.Token == "" || request.Amount == "" {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]interface{}{"error": "Missing required fields"})
 		return
 	}
 
@@ -40,7 +55,9 @@ func handleCreatePayment(c *gin.Context) {
 	if request.SenderENS != "" {
 		resolvedSender, err := resolveENSName(request.SenderENS)
 		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("Failed to resolve sender ENS: %v", err)})
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(map[string]interface{}{"error": fmt.Sprintf("Failed to resolve sender ENS: %v", err)})
 			return
 		}
 		log.Printf("Resolved sender ENS %s to %s", request.SenderENS, resolvedSender)
@@ -49,7 +66,9 @@ func handleCreatePayment(c *gin.Context) {
 	if request.RecipientENS != "" {
 		resolvedRecipient, err := resolveENSName(request.RecipientENS)
 		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("Failed to resolve recipient ENS: %v", err)})
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(map[string]interface{}{"error": fmt.Sprintf("Failed to resolve recipient ENS: %v", err)})
 			return
 		}
 		if resolvedRecipient != request.Recipient {
@@ -74,7 +93,7 @@ func handleCreatePayment(c *gin.Context) {
 		log.Printf("Warning: Failed to generate receipt: %v", err)
 	}
 
-	response := gin.H{
+	response := map[string]interface{}{
 		"payment_id":     paymentID,
 		"status":         "pending",
 		"oracle_price":   oraclePrice,
@@ -83,40 +102,68 @@ func handleCreatePayment(c *gin.Context) {
 		"tx_hash":        fmt.Sprintf("0x%x", paymentID), // Mock tx hash
 	}
 
-	c.JSON(http.StatusCreated, response)
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(response)
 }
 
-func handleCompletePayment(c *gin.Context) {
-	paymentID := c.Param("id")
+func handleCompletePayment(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "POST" {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		json.NewEncoder(w).Encode(map[string]interface{}{"error": "Method not allowed"})
+		return
+	}
+
+	// Extract payment ID from URL path
+	path := strings.TrimPrefix(r.URL.Path, "/api/payments/complete/")
+	paymentID := strings.TrimSuffix(path, "/")
 	
 	// Mock payment completion
 	log.Printf("Completing payment: %s", paymentID)
 	
-	c.JSON(http.StatusOK, gin.H{
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]interface{}{
 		"payment_id":   paymentID,
 		"status":       "completed",
 		"completed_at": time.Now().Unix(),
 	})
 }
 
-func handleRefundPayment(c *gin.Context) {
-	paymentID := c.Param("id")
+func handleRefundPayment(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "POST" {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		json.NewEncoder(w).Encode(map[string]interface{}{"error": "Method not allowed"})
+		return
+	}
+
+	// Extract payment ID from URL path
+	path := strings.TrimPrefix(r.URL.Path, "/api/payments/refund/")
+	paymentID := strings.TrimSuffix(path, "/")
 	
 	// Mock payment refund
 	log.Printf("Refunding payment: %s", paymentID)
 	
-	c.JSON(http.StatusOK, gin.H{
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]interface{}{
 		"payment_id": paymentID,
 		"status":     "refunded",
 		"refunded_at": time.Now().Unix(),
 	})
 }
 
-func handleGetPayment(c *gin.Context) {
-	paymentID := c.Param("id")
+func handleGetPayment(w http.ResponseWriter, r *http.Request) {
+	// Extract payment ID from URL path
+	path := strings.TrimPrefix(r.URL.Path, "/api/payments/")
+	paymentID := strings.TrimSuffix(path, "/")
 	
 	// Mock payment retrieval
-	c.JSON(http.StatusOK, gin.H{
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]interface{}{
 		"payment_id":    paymentID,
 		"sender":        "0x1234...",
 		"recipient":     "0x5678...",
@@ -127,11 +174,13 @@ func handleGetPayment(c *gin.Context) {
 	})
 }
 
-func handleGetUserPayments(c *gin.Context) {
-	address := c.Param("address")
+func handleGetUserPayments(w http.ResponseWriter, r *http.Request) {
+	// Extract address from URL path
+	path := strings.TrimPrefix(r.URL.Path, "/api/payments/user/")
+	address := strings.TrimSuffix(path, "/")
 	
 	// Mock user payments
-	payments := []gin.H{
+	payments := []map[string]interface{}{
 		{
 			"payment_id": 1,
 			"recipient":  "0x9999...",
@@ -148,7 +197,9 @@ func handleGetUserPayments(c *gin.Context) {
 		},
 	}
 	
-	c.JSON(http.StatusOK, gin.H{
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]interface{}{
 		"address":  address,
 		"payments": payments,
 		"count":    len(payments),
@@ -156,15 +207,24 @@ func handleGetUserPayments(c *gin.Context) {
 }
 
 // Receipt handlers
-func handleGenerateReceipt(c *gin.Context) {
-	paymentID := c.Param("paymentId")
+func handleGenerateReceipt(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "POST" {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		json.NewEncoder(w).Encode(map[string]interface{}{"error": "Method not allowed"})
+		return
+	}
+
+	// Extract payment ID from URL path
+	path := strings.TrimPrefix(r.URL.Path, "/api/receipts/generate/")
+	paymentID := strings.TrimSuffix(path, "/")
 	
 	var request struct {
 		Format   string `json:"format"`
 		Language string `json:"language"`
 	}
 	
-	c.ShouldBindJSON(&request)
+	json.NewDecoder(r.Body).Decode(&request)
 	
 	if request.Format == "" {
 		request.Format = "json"
@@ -182,46 +242,66 @@ func handleGenerateReceipt(c *gin.Context) {
 	
 	resp, err := makeServiceCall("POST", storageServiceURL+"/api/receipts/generate", receiptData)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to generate receipt: %v", err)})
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]interface{}{"error": fmt.Sprintf("Failed to generate receipt: %v", err)})
 		return
 	}
 	
-	c.JSON(http.StatusOK, resp)
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(resp)
 }
 
-func handleDownloadReceipt(c *gin.Context) {
-	receiptID := c.Param("id")
+func handleDownloadReceipt(w http.ResponseWriter, r *http.Request) {
+	// Extract receipt ID from URL path
+	path := strings.TrimPrefix(r.URL.Path, "/api/receipts/download/")
+	receiptID := strings.TrimSuffix(path, "/")
 	
 	// Proxy to storage worker
 	resp, err := makeServiceCall("GET", storageServiceURL+"/api/receipts/download/"+receiptID, nil)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to download receipt: %v", err)})
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]interface{}{"error": fmt.Sprintf("Failed to download receipt: %v", err)})
 		return
 	}
 	
-	c.JSON(http.StatusOK, resp)
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(resp)
 }
 
-func handleVerifyReceipt(c *gin.Context) {
-	cid := c.Param("cid")
+func handleVerifyReceipt(w http.ResponseWriter, r *http.Request) {
+	// Extract CID from URL path
+	path := strings.TrimPrefix(r.URL.Path, "/api/receipts/verify/")
+	cid := strings.TrimSuffix(path, "/")
 	
 	// Proxy to storage worker
 	resp, err := makeServiceCall("GET", storageServiceURL+"/api/receipts/verify/"+cid, nil)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to verify receipt: %v", err)})
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]interface{}{"error": fmt.Sprintf("Failed to verify receipt: %v", err)})
 		return
 	}
 	
-	c.JSON(http.StatusOK, resp)
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(resp)
 }
 
-func handleGetReceiptsByPayment(c *gin.Context) {
-	paymentID := c.Param("paymentId")
+func handleGetReceiptsByPayment(w http.ResponseWriter, r *http.Request) {
+	// Extract payment ID from URL path
+	path := strings.TrimPrefix(r.URL.Path, "/api/receipts/payment/")
+	paymentID := strings.TrimSuffix(path, "/")
 	
 	// Mock receipts for payment
-	c.JSON(http.StatusOK, gin.H{
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]interface{}{
 		"payment_id": paymentID,
-		"receipts": []gin.H{
+		"receipts": []map[string]interface{}{
 			{
 				"receipt_id": "rcpt_1",
 				"cid":        "bafybei...",
@@ -234,156 +314,248 @@ func handleGetReceiptsByPayment(c *gin.Context) {
 }
 
 // Oracle handlers
-func handleGetPrice(c *gin.Context) {
-	symbol := c.Param("symbol")
+func handleGetPrice(w http.ResponseWriter, r *http.Request) {
+	// Extract symbol from URL path
+	path := strings.TrimPrefix(r.URL.Path, "/api/oracle/price/")
+	symbol := strings.TrimSuffix(path, "/")
 	
 	price, err := getOraclePrice(symbol)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]interface{}{"error": err.Error()})
 		return
 	}
 	
-	c.JSON(http.StatusOK, gin.H{
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]interface{}{
 		"symbol": symbol,
 		"price":  price,
 		"timestamp": time.Now().Unix(),
 	})
 }
 
-func handleRequestRandom(c *gin.Context) {
+func handleRequestRandom(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "POST" {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		json.NewEncoder(w).Encode(map[string]interface{}{"error": "Method not allowed"})
+		return
+	}
+
 	resp, err := makeServiceCall("POST", oracleServiceURL+"/api/random/request", map[string]string{
 		"requester": "payment-processor",
 	})
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]interface{}{"error": err.Error()})
 		return
 	}
 	
-	c.JSON(http.StatusOK, resp)
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(resp)
 }
 
-func handleRandomStatus(c *gin.Context) {
-	requestID := c.Param("requestId")
+func handleRandomStatus(w http.ResponseWriter, r *http.Request) {
+	// Extract request ID from URL path
+	path := strings.TrimPrefix(r.URL.Path, "/api/oracle/random/status/")
+	requestID := strings.TrimSuffix(path, "/")
 	
 	resp, err := makeServiceCall("GET", oracleServiceURL+"/api/random/status/"+requestID, nil)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]interface{}{"error": err.Error()})
 		return
 	}
 	
-	c.JSON(http.StatusOK, resp)
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(resp)
 }
 
-func handleSubmitProof(c *gin.Context) {
+func handleSubmitProof(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "POST" {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		json.NewEncoder(w).Encode(map[string]interface{}{"error": "Method not allowed"})
+		return
+	}
+
 	var proofData map[string]interface{}
-	if err := c.ShouldBindJSON(&proofData); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid proof data"})
+	if err := json.NewDecoder(r.Body).Decode(&proofData); err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]interface{}{"error": "Invalid proof data"})
 		return
 	}
 	
 	resp, err := makeServiceCall("POST", oracleServiceURL+"/api/fdc/proof/submit", proofData)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]interface{}{"error": err.Error()})
 		return
 	}
 	
-	c.JSON(http.StatusOK, resp)
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(resp)
 }
 
-func handleVerifyProof(c *gin.Context) {
-	proofID := c.Param("proofId")
+func handleVerifyProof(w http.ResponseWriter, r *http.Request) {
+	// Extract proof ID from URL path
+	path := strings.TrimPrefix(r.URL.Path, "/api/oracle/proof/verify/")
+	proofID := strings.TrimSuffix(path, "/")
 	
 	resp, err := makeServiceCall("GET", oracleServiceURL+"/api/fdc/proof/verify/"+proofID, nil)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]interface{}{"error": err.Error()})
 		return
 	}
 	
-	c.JSON(http.StatusOK, resp)
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(resp)
 }
 
 // ENS handlers
-func handleResolveName(c *gin.Context) {
-	name := c.Param("name")
+func handleResolveName(w http.ResponseWriter, r *http.Request) {
+	// Extract name from URL path
+	path := strings.TrimPrefix(r.URL.Path, "/api/ens/resolve/")
+	name := strings.TrimSuffix(path, "/")
 	
 	address, err := resolveENSName(name)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusNotFound)
+		json.NewEncoder(w).Encode(map[string]interface{}{"error": err.Error()})
 		return
 	}
 	
-	c.JSON(http.StatusOK, gin.H{
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]interface{}{
 		"name":    name,
 		"address": address,
 	})
 }
 
-func handleReverseResolve(c *gin.Context) {
-	address := c.Param("address")
+func handleReverseResolve(w http.ResponseWriter, r *http.Request) {
+	// Extract address from URL path
+	path := strings.TrimPrefix(r.URL.Path, "/api/ens/reverse/")
+	address := strings.TrimSuffix(path, "/")
 	
 	resp, err := makeServiceCall("GET", ensServiceURL+"/api/ens/reverse/"+address, nil)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]interface{}{"error": err.Error()})
 		return
 	}
 	
-	c.JSON(http.StatusOK, resp)
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(resp)
 }
 
-func handleBatchResolve(c *gin.Context) {
+func handleBatchResolve(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "POST" {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		json.NewEncoder(w).Encode(map[string]interface{}{"error": "Method not allowed"})
+		return
+	}
+
 	var request map[string]interface{}
-	if err := c.ShouldBindJSON(&request); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
+	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]interface{}{"error": "Invalid request"})
 		return
 	}
 	
 	resp, err := makeServiceCall("POST", ensServiceURL+"/api/ens/resolve/batch", request)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]interface{}{"error": err.Error()})
 		return
 	}
 	
-	c.JSON(http.StatusOK, resp)
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(resp)
 }
 
 // Storage handlers  
-func handleUploadFile(c *gin.Context) {
+func handleUploadFile(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "POST" {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		json.NewEncoder(w).Encode(map[string]interface{}{"error": "Method not allowed"})
+		return
+	}
+
 	resp, err := makeServiceCall("POST", storageServiceURL+"/api/storage/upload", nil)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]interface{}{"error": err.Error()})
 		return
 	}
 	
-	c.JSON(http.StatusOK, resp)
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(resp)
 }
 
-func handleRetrieveFile(c *gin.Context) {
-	cid := c.Param("cid")
+func handleRetrieveFile(w http.ResponseWriter, r *http.Request) {
+	// Extract CID from URL path
+	path := strings.TrimPrefix(r.URL.Path, "/api/storage/retrieve/")
+	cid := strings.TrimSuffix(path, "/")
 	
 	resp, err := makeServiceCall("GET", storageServiceURL+"/api/storage/retrieve/"+cid, nil)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]interface{}{"error": err.Error()})
 		return
 	}
 	
-	c.JSON(http.StatusOK, resp)
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(resp)
 }
 
-func handleEstimateCost(c *gin.Context) {
-	size := c.Param("size")
+func handleEstimateCost(w http.ResponseWriter, r *http.Request) {
+	// Extract size from URL path
+	path := strings.TrimPrefix(r.URL.Path, "/api/storage/cost/")
+	size := strings.TrimSuffix(path, "/")
 	
 	resp, err := makeServiceCall("GET", storageServiceURL+"/api/storage/cost/"+size, nil)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]interface{}{"error": err.Error()})
 		return
 	}
 	
-	c.JSON(http.StatusOK, resp)
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(resp)
 }
 
 // Analytics handlers
-func handleGetStats(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{
+func handleGetStats(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]interface{}{
 		"total_payments":    1000,
 		"completed_payments": 850,
 		"total_volume":      "1250000000000000000000", // 1250 ETH
@@ -394,10 +566,12 @@ func handleGetStats(c *gin.Context) {
 	})
 }
 
-func handleGetPaymentVolume(c *gin.Context) {
+func handleGetPaymentVolume(w http.ResponseWriter, r *http.Request) {
 	// Mock volume data
-	c.JSON(http.StatusOK, gin.H{
-		"daily_volume": []gin.H{
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"daily_volume": []map[string]interface{}{
 			{"date": "2024-01-01", "volume": "50000000000000000000"},
 			{"date": "2024-01-02", "volume": "75000000000000000000"},
 			{"date": "2024-01-03", "volume": "100000000000000000000"},
@@ -406,15 +580,17 @@ func handleGetPaymentVolume(c *gin.Context) {
 	})
 }
 
-func handleGetReceiptStats(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{
+func handleGetReceiptStats(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]interface{}{
 		"total_receipts":    750,
 		"verified_receipts": 600,
-		"by_format": gin.H{
+		"by_format": map[string]interface{}{
 			"json": 450,
 			"pdf":  300,
 		},
-		"by_language": gin.H{
+		"by_language": map[string]interface{}{
 			"en": 500,
 			"es": 150,
 			"fr": 100,
