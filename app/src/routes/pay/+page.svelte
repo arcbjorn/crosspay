@@ -14,6 +14,8 @@
   let token = '0x0000000000000000000000000000000000000000'; // ETH
   let metadataURI = '';
   let selectedChain = chain.id;
+  let senderENS = '';
+  let recipientENS = '';
   
   let isSubmitting = false;
   let error = '';
@@ -60,13 +62,15 @@
       // Create payment service for selected chain
       const paymentService = new PaymentService(selectedChain);
       
-      // Create payment on blockchain
+      // Create payment on blockchain  
       const result = await paymentService.createPayment(
         recipient as Address,
         token as Address,
         amount,
         metadataURI || '',
-        wallet.address as Address
+        wallet.address as Address,
+        senderENS,
+        recipientENS || (recipient.endsWith('.eth') ? recipient : '')
       );
       
       success = `Payment created successfully! Payment ID: ${result.paymentId}`;
@@ -218,6 +222,23 @@
             </label>
           </div>
           
+          <!-- ENS Names (Optional) -->
+          <div class="form-control">
+            <label class="label" for="senderENS">
+              <span class="label-text">Your ENS Name (Optional)</span>
+            </label>
+            <input
+              id="senderENS"
+              type="text"
+              placeholder="alice.eth"
+              class="input input-bordered w-full"
+              bind:value={senderENS}
+            />
+            <label class="label">
+              <span class="label-text-alt">Display name for sender in receipt</span>
+            </label>
+          </div>
+
           <!-- Metadata URI -->
           <div class="form-control">
             <label class="label" for="metadata">
