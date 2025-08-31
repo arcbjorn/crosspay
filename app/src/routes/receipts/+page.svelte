@@ -1,11 +1,18 @@
 <script lang="ts">
   import { walletStore } from '$lib/stores/wallet';
   import { chainStore, getChain } from '$lib/stores/chain';
+  import { PaymentService } from '$lib/services/payment';
+  import { onMount } from 'svelte';
+  import type { Address } from 'viem';
   
   $: wallet = $walletStore;
   $: chain = $chainStore;
   
-  // Mock payment data - in real implementation, this would come from the smart contract
+  let payments: any[] = [];
+  let loading = true;
+  let error = '';
+  
+  // Mock payment data - this will be replaced with real data
   const mockPayments = [
     {
       id: 1,
@@ -79,15 +86,90 @@
     return '#';
   };
   
+  const loadPayments = async () => {
+    if (!wallet.isConnected || !wallet.account) {
+      loading = false;
+      return;
+    }
+    
+    try {
+      loading = true;
+      error = '';
+      
+      const paymentService = new PaymentService(chain.id);
+      
+      // Get both sent and received payments
+      const [sentPaymentIds, receivedPaymentIds] = await Promise.all([
+        paymentService.getUserPayments(wallet.account as Address, true),
+        paymentService.getUserPayments(wallet.account as Address, false),
+      ]);
+      
+      // Fetch full payment details for all payment IDs
+      const allPaymentIds = [...new Set([...sentPaymentIds, ...receivedPaymentIds])];
+      const paymentPromises = allPaymentIds.map(id => paymentService.getPayment(id));
+      const paymentResults = await Promise.all(paymentPromises);
+      
+      // Format payments for display
+      payments = paymentResults.map(payment => ({
+        id: Number(payment.id),
+        sender: payment.sender,
+        recipient: payment.recipient,
+        amount: paymentService.formatAmount(payment.amount),
+        token: payment.token === '0x0000000000000000000000000000000000000000' ? 'ETH' : 'TOKEN',
+        status: payment.status,
+        createdAt: Number(payment.createdAt) * 1000, // Convert to milliseconds
+        completedAt: payment.completedAt > 0n ? Number(payment.completedAt) * 1000 : null,
+        chainId: chain.id,
+        metadataURI: payment.metadataURI,
+        fee: paymentService.formatAmount(payment.fee),
+        txHash: '0x' // This would come from transaction events
+      }));
+      
+    } catch (err) {
+      console.error('Failed to load payments:', err);
+      error = 'Failed to load payment history. Using mock data for now.';
+      payments = mockPayments; // Fallback to mock data
+    } finally {
+      loading = false;
+    }
+  };
+  
   const handleCompletePayment = async (paymentId: number) => {
-    console.log('Completing payment:', paymentId);
-    // In real implementation, this would call the smart contract
+    if (!wallet.account) return;
+    
+    try {
+      const paymentService = new PaymentService(chain.id);
+      await paymentService.completePayment(BigInt(paymentId), wallet.account as Address);
+      await loadPayments(); // Reload payments
+    } catch (err) {
+      console.error('Failed to complete payment:', err);
+    }
   };
   
   const handleRefundPayment = async (paymentId: number) => {
-    console.log('Refunding payment:', paymentId);
-    // In real implementation, this would call the smart contract
+    if (!wallet.account) return;
+    
+    try {
+      const paymentService = new PaymentService(chain.id);
+      await paymentService.refundPayment(BigInt(paymentId), wallet.account as Address);
+      await loadPayments(); // Reload payments
+    } catch (err) {
+      console.error('Failed to refund payment:', err);
+    }
   };
+  
+  // Load payments when wallet connects or chain changes
+  $: if (wallet.isConnected && wallet.account) {
+    loadPayments();
+  }
+  
+  onMount(() => {
+    if (wallet.isConnected && wallet.account) {
+      loadPayments();
+    } else {
+      loading = false;
+    }
+  });
 </script>
 
 <svelte:head>
@@ -116,7 +198,19 @@
       </svg>
       <span>Connect your wallet to view your payment history</span>
     </div>
-  {:else if mockPayments.length === 0}
+  {:else if loading}
+    <div class="flex justify-center items-center py-16">
+      <span class="loading loading-spinner loading-lg"></span>
+      <span class="ml-4">Loading payments...</span>
+    </div>
+  {:else if error}
+    <div class="alert alert-warning">
+      <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+      </svg>
+      <span>{error}</span>
+    </div>
+  {:else if payments.length === 0}
     <div class="text-center py-16">
       <div class="text-6xl mb-4">📄</div>
       <h3 class="text-2xl font-bold mb-2">No payments yet</h3>
@@ -125,7 +219,7 @@
     </div>
   {:else}
     <div class="grid gap-6">
-      {#each mockPayments as payment}
+      {#each payments as payment}
         <div class="card bg-base-100 shadow-xl">
           <div class="card-body">
             <div class="flex items-start justify-between">
