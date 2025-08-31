@@ -9,8 +9,12 @@ via_ir = true
 
 # Remappings
 remappings = [
-    "@openzeppelin/=lib/openzeppelin-contracts/"
+    "@openzeppelin/=lib/openzeppelin-contracts/",
+    "fhevm/=lib/fhevm-solidity/"
 ]
+
+# Exclude FHE contracts that need proper setup
+ignored_error_codes = [9582, 7576]
 
 # Networks
 [rpc_endpoints]

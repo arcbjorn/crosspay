@@ -29,12 +29,12 @@ contract DeployAdvancedScript is Script {
     RelayValidator public relayValidator;
     TrancheVault public trancheVault;
     GrantPool public grantPool;
-    TimelockController public timelock;
+    CrossPayTimelock public timelock;
     BatchOperations public batchOps;
     MockUSDC public usdc;
     
     address public deployer;
-    address public multisig = 0x742d35Cc6634C0532925a3b8D34300e8; // Replace with actual multisig
+    address public multisig = 0x742D35Cc6634c0532925a3b8D34300E8bcd2D15D; // Replace with actual multisig
     address public complianceRole = 0x1234567890123456789012345678901234567890; // Replace with compliance address
     
     function run() external {
@@ -53,7 +53,7 @@ contract DeployAdvancedScript is Script {
             console.log("Mock USDC deployed at:", address(usdc));
         } else {
             // Use real USDC on mainnet/other networks
-            usdc = MockUSDC(0xA0b86a33E6441946e6f2ad68b9C2e915F5d98D35); // Replace with actual USDC
+            usdc = MockUSDC(0xA0B86a33e6441946E6f2AD68B9C2E915f5d98D35); // Replace with actual USDC
         }
         
         // 1. Deploy ConfidentialPayments
@@ -82,8 +82,7 @@ contract DeployAdvancedScript is Script {
         proposers[0] = multisig;
         executors[0] = multisig;
         
-        timelock = new TimelockController(
-            24 hours, // minDelay
+        timelock = new CrossPayTimelock(
             proposers,
             executors,
             multisig // admin
@@ -134,7 +133,8 @@ contract DeployAdvancedScript is Script {
     function transferOwnership() internal {
         console.log("Transferring ownership to multisig...");
         
-        confidentialPayments.transferOwnership(multisig);
+        // ConfidentialPayments uses AccessControl, not Ownable
+        confidentialPayments.grantRole(confidentialPayments.DEFAULT_ADMIN_ROLE(), multisig);
         relayValidator.transferOwnership(multisig);
         trancheVault.transferOwnership(multisig);
         grantPool.transferOwnership(multisig);
