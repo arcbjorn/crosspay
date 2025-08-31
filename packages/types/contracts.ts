@@ -6,7 +6,7 @@ export interface Payment {
   token: string;
   amount: bigint;
   fee: bigint;
-  status: 0 | 1 | 2 | 3; // Pending, Completed, Refunded, Cancelled
+  status: PaymentStatus;
   createdAt: bigint;
   completedAt: bigint;
   metadataURI: string;
