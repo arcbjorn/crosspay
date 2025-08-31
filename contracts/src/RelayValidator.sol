@@ -6,6 +6,7 @@ import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/utils/Pausable.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
+import "./TimelockController.sol";
 
 contract RelayValidator is ReentrancyGuard, Ownable, Pausable {
     using ECDSA for bytes32;
@@ -76,6 +77,7 @@ contract RelayValidator is ReentrancyGuard, Ownable, Pausable {
     address[] public activeValidators;
     uint256 private _validationCounter;
     uint256 public highValueThreshold = 1000 ether;
+    CrossPayTimelock public timelock;
 
     event ValidatorRegistered(
         address indexed validator,
@@ -131,6 +133,18 @@ contract RelayValidator is ReentrancyGuard, Ownable, Pausable {
     error SlashingFailed();
 
     constructor() Ownable(msg.sender) {}
+
+    function setTimelock(address _timelock) external onlyOwner {
+        timelock = CrossPayTimelock(payable(_timelock));
+    }
+
+    modifier onlyTimelockOrOwner() {
+        require(
+            msg.sender == owner() || (address(timelock) != address(0) && msg.sender == address(timelock)),
+            "Only owner or timelock"
+        );
+        _;
+    }
 
     function registerValidator() external payable {
         if (msg.value < MIN_STAKE) {
@@ -431,7 +445,7 @@ contract RelayValidator is ReentrancyGuard, Ownable, Pausable {
         return recoveredSigner == expectedSigner;
     }
 
-    function setHighValueThreshold(uint256 newThreshold) external onlyOwner {
+    function setHighValueThreshold(uint256 newThreshold) external onlyTimelockOrOwner {
         highValueThreshold = newThreshold;
     }
 
