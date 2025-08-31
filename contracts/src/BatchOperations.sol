@@ -4,6 +4,7 @@ pragma solidity ^0.8.24;
 import "./ConfidentialPayments.sol";
 import "./RelayValidator.sol";
 import "./TrancheVault.sol";
+import "fhevm/lib/TFHE.sol";
 
 contract BatchOperations {
     ConfidentialPayments public immutable confidentialPayments;
@@ -13,7 +14,8 @@ contract BatchOperations {
     struct BatchPayment {
         address recipient;
         address token;
-        bytes encryptedAmount;
+        einput encryptedAmount;
+        bytes inputProof;
         string metadataURI;
         bool makePrivate;
     }
@@ -73,6 +75,7 @@ contract BatchOperations {
                 payment.recipient,
                 payment.token,
                 payment.encryptedAmount,
+                payment.inputProof,
                 payment.metadataURI,
                 payment.makePrivate
             ) returns (uint256 paymentId) {
