@@ -1,0 +1,15 @@
+{
+  "name": "@crosspay/contracts",
+  "version": "0.1.0",
+  "description": "CrossPay Protocol smart contracts",
+  "scripts": {
+    "build": "forge build",
+    "test": "forge test",
+    "deploy:lisk": "forge script script/Deploy.s.sol:Deploy --rpc-url lisk-sepolia --broadcast --verify",
+    "deploy:base": "forge script script/Deploy.s.sol:Deploy --rpc-url base-sepolia --broadcast --verify"
+  },
+  "keywords": ["solidity", "smart-contracts", "payments"],
+  "author": "",
+  "license": "MIT",
+  "packageManager": "pnpm@10.15.0"
+}
