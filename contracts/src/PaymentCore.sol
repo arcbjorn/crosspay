@@ -6,16 +6,21 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/Pausable.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "./RelayValidator.sol";
 
 contract PaymentCore is ReentrancyGuard, Ownable, Pausable {
     using SafeERC20 for IERC20;
 
     uint256 public constant FEE_BASIS_POINTS = 10; // 0.1%
     uint256 public constant REFUND_DELAY = 24 hours;
+    uint256 public constant HIGH_VALUE_THRESHOLD = 1000 ether; // Requires validator approval
     uint256 private _paymentCounter;
+    
+    RelayValidator public relayValidator;
 
     enum PaymentStatus {
         Pending,
+        ValidatorRequired,
         Completed,
         Refunded,
         Cancelled
@@ -37,6 +42,8 @@ contract PaymentCore is ReentrancyGuard, Ownable, Pausable {
         string recipientENS;
         string oraclePrice;
         bytes32 randomSeed;
+        uint256 validatorRequestId;
+        bool requiresValidation;
     }
 
     mapping(uint256 => Payment) public payments;
@@ -59,6 +66,8 @@ contract PaymentCore is ReentrancyGuard, Ownable, Pausable {
     event ReceiptStored(uint256 indexed paymentId, string receiptCID);
     event OraclePriceSet(uint256 indexed paymentId, string price);
     event RandomSeedSet(uint256 indexed paymentId, bytes32 seed);
+    event ValidatorApprovalRequired(uint256 indexed paymentId, uint256 indexed requestId);
+    event ValidatorApprovalReceived(uint256 indexed paymentId, uint256 indexed requestId);
 
     event PaymentCompleted(uint256 indexed id, address indexed completer);
     event PaymentRefunded(uint256 indexed id, address indexed refunder);
@@ -71,8 +80,14 @@ contract PaymentCore is ReentrancyGuard, Ownable, Pausable {
     error InvalidPaymentStatus();
     error RefundNotAvailable();
     error TransferFailed();
+    error ValidatorApprovalPending();
+    error InvalidValidatorSignature();
 
     constructor() Ownable(msg.sender) {}
+
+    function setRelayValidator(address _relayValidator) external onlyOwner {
+        relayValidator = RelayValidator(_relayValidator);
+    }
 
     function createPayment(
         address recipient,
@@ -102,7 +117,10 @@ contract PaymentCore is ReentrancyGuard, Ownable, Pausable {
         payment.token = token;
         payment.amount = amount;
         payment.fee = fee;
-        payment.status = PaymentStatus.Pending;
+        // Check if high-value payment requires validator approval
+        bool requiresValidation = amount >= HIGH_VALUE_THRESHOLD;
+        payment.requiresValidation = requiresValidation;
+        payment.status = requiresValidation ? PaymentStatus.ValidatorRequired : PaymentStatus.Pending;
         payment.createdAt = block.timestamp;
         payment.metadataURI = metadataURI;
         payment.senderENS = senderENS;
@@ -122,6 +140,14 @@ contract PaymentCore is ReentrancyGuard, Ownable, Pausable {
         senderPayments[msg.sender].push(paymentId);
         recipientPayments[recipient].push(paymentId);
         collectedFees[token] += fee;
+
+        // Request validator approval for high-value payments
+        if (requiresValidation && address(relayValidator) != address(0)) {
+            bytes32 messageHash = keccak256(abi.encodePacked(paymentId, msg.sender, recipient, amount, block.timestamp));
+            uint256 requestId = relayValidator.requestValidation(paymentId, messageHash, amount);
+            payment.validatorRequestId = requestId;
+            emit ValidatorApprovalRequired(paymentId, requestId);
+        }
 
         emit PaymentCreated(
             paymentId,
@@ -144,11 +170,32 @@ contract PaymentCore is ReentrancyGuard, Ownable, Pausable {
         if (payment.id == 0) {
             revert InvalidPaymentId();
         }
-        if (payment.status != PaymentStatus.Pending) {
+        if (payment.status != PaymentStatus.Pending && payment.status != PaymentStatus.ValidatorRequired) {
             revert InvalidPaymentStatus();
         }
         if (msg.sender != payment.recipient && msg.sender != payment.sender) {
             revert UnauthorizedAction();
+        }
+        
+        // Check validator approval for high-value payments
+        if (payment.requiresValidation) {
+            if (address(relayValidator) == address(0)) {
+                revert ValidatorApprovalPending();
+            }
+            
+            // Verify the validator request is completed and valid
+            (,,,, , RelayValidator.ValidationStatus status,,, ) = relayValidator.getValidationRequest(payment.validatorRequestId);
+            if (status != RelayValidator.ValidationStatus.Completed) {
+                revert ValidatorApprovalPending();
+            }
+            
+            // CRITICAL: Verify the aggregated BLS signature on-chain
+            bool signatureValid = relayValidator.verifyAggregatedSignature(payment.validatorRequestId);
+            if (!signatureValid) {
+                revert InvalidValidatorSignature();
+            }
+            
+            emit ValidatorApprovalReceived(paymentId, payment.validatorRequestId);
         }
 
         payment.status = PaymentStatus.Completed;
@@ -327,5 +374,19 @@ contract PaymentCore is ReentrancyGuard, Ownable, Pausable {
 
     function getPaymentCount() external view returns (uint256) {
         return _paymentCounter;
+    }
+
+    function getValidationStatus(uint256 paymentId) external view returns (bool requiresValidation, uint256 requestId, RelayValidator.ValidationStatus status) {
+        Payment storage payment = payments[paymentId];
+        if (payment.id == 0) {
+            revert InvalidPaymentId();
+        }
+        
+        requiresValidation = payment.requiresValidation;
+        requestId = payment.validatorRequestId;
+        
+        if (requiresValidation && address(relayValidator) != address(0)) {
+            (,,,, , status,,, ) = relayValidator.getValidationRequest(requestId);
+        }
     }
 }
