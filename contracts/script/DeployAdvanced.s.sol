@@ -6,6 +6,8 @@ import "../src/ConfidentialPayments.sol";
 import "../src/RelayValidator.sol";
 import "../src/TrancheVault.sol";
 import "../src/GrantPool.sol";
+import "../src/TimelockController.sol";
+import "../src/BatchOperations.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
 contract MockUSDC is ERC20 {
@@ -27,6 +29,8 @@ contract DeployAdvancedScript is Script {
     RelayValidator public relayValidator;
     TrancheVault public trancheVault;
     GrantPool public grantPool;
+    TimelockController public timelock;
+    BatchOperations public batchOps;
     MockUSDC public usdc;
     
     address public deployer;
@@ -71,6 +75,28 @@ contract DeployAdvancedScript is Script {
         // 4. Deploy GrantPool
         grantPool = new GrantPool();
         console.log("GrantPool deployed at:", address(grantPool));
+        
+        // 5. Deploy TimelockController
+        address[] memory proposers = new address[](1);
+        address[] memory executors = new address[](1);
+        proposers[0] = multisig;
+        executors[0] = multisig;
+        
+        timelock = new TimelockController(
+            24 hours, // minDelay
+            proposers,
+            executors,
+            multisig // admin
+        );
+        console.log("TimelockController deployed at:", address(timelock));
+        
+        // 6. Deploy BatchOperations
+        batchOps = new BatchOperations(
+            address(confidentialPayments),
+            address(relayValidator),
+            address(trancheVault)
+        );
+        console.log("BatchOperations deployed at:", address(batchOps));
         
         // Setup roles and permissions
         setupRoles();
@@ -128,6 +154,8 @@ contract DeployAdvancedScript is Script {
         console.log("- RelayValidator:", address(relayValidator));
         console.log("- TrancheVault:", address(trancheVault));
         console.log("- GrantPool:", address(grantPool));
+        console.log("- TimelockController:", address(timelock));
+        console.log("- BatchOperations:", address(batchOps));
         console.log("- USDC Token:", address(usdc));
         console.log("");
         console.log("Next Steps:");
