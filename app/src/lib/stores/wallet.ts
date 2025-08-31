@@ -66,6 +66,20 @@ export const connectWallet = async (preferredConnector?: 'metamask' | 'walletcon
 
     await connect(wagmiConfig, { connector });
     updateStoreFromWagmi();
+    
+    // Auto-switch to Lisk Sepolia (4202) after connection
+    const account = getAccount(wagmiConfig);
+    const currentChainId = getChainId(wagmiConfig);
+    
+    if (account.isConnected && currentChainId !== 4202) {
+      try {
+        console.log('Auto-switching to Lisk Sepolia...');
+        await wagmiSwitchChain(wagmiConfig, { chainId: 4202 });
+        updateStoreFromWagmi();
+      } catch (error) {
+        console.log('Auto chain-switch failed, user can manually switch:', error);
+      }
+    }
 
   } catch (error) {
     console.error('Wallet connection error:', error);
