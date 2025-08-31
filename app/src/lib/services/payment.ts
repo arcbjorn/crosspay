@@ -1,6 +1,6 @@
 import { parseEther, formatEther, parseEventLogs, type Address } from 'viem';
 import { getPublicClient, getWalletClient, getContractAddress, PaymentCoreABI } from '../contracts';
-import type { Payment, PaymentStatus } from '../../../packages/types/contracts';
+import type { Payment, PaymentStatus } from '../../../../packages/types/contracts';
 
 export class PaymentService {
   constructor(private chainId: number) {}
@@ -175,6 +175,10 @@ export class PaymentService {
 
   formatAmount(amount: bigint): string {
     return formatEther(amount);
+  }
+
+  getContractAddress(): Address {
+    return getContractAddress(this.chainId, 'PaymentCore');
   }
 
   private async approveTokenIfNeeded(
