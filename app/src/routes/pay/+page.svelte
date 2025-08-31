@@ -1,7 +1,9 @@
 <script lang="ts">
   import { walletStore } from '$lib/stores/wallet';
-  import { chainStore, SUPPORTED_CHAINS } from '$lib/stores/chain';
+  import { chainStore, SUPPORTED_CHAINS, setChain } from '$lib/stores/chain';
   import { goto } from '$app/navigation';
+  import { PaymentService } from '$lib/services/payment';
+  import type { Address } from 'viem';
   
   $: wallet = $walletStore;
   $: chain = $chainStore;
@@ -45,8 +47,27 @@
     error = '';
     
     try {
-      // Mock payment creation - in real implementation, this would interact with the smart contract
-      console.log('Creating payment:', {
+      // Update chain if different
+      if (selectedChain !== chain.id) {
+        setChain(selectedChain);
+      }
+      
+      // Create payment service for selected chain
+      const paymentService = new PaymentService(selectedChain);
+      
+      // Create payment on blockchain
+      const result = await paymentService.createPayment(
+        recipient as Address,
+        token as Address,
+        amount,
+        metadataURI || '',
+        wallet.account as Address
+      );
+      
+      success = `Payment created successfully! Payment ID: ${result.paymentId}`;
+      console.log('Payment created:', {
+        hash: result.hash,
+        paymentId: result.paymentId.toString(),
         recipient,
         amount,
         token,
@@ -54,22 +75,18 @@
         chain: selectedChain
       });
       
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      success = 'Payment created successfully!';
-      
       // Reset form
       recipient = '';
       amount = '';
       metadataURI = '';
       
-      // Redirect to receipts after 2 seconds
+      // Redirect to receipt page
       setTimeout(() => {
-        goto('/receipts');
+        goto(`/receipt/${result.paymentId}`);
       }, 2000);
       
     } catch (err) {
+      console.error('Payment creation failed:', err);
       error = err instanceof Error ? err.message : 'Failed to create payment';
     } finally {
       isSubmitting = false;
