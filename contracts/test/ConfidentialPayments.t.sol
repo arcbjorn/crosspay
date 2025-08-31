@@ -3,6 +3,7 @@ pragma solidity ^0.8.24;
 
 import {Test, console} from "forge-std/Test.sol";
 import "../src/ConfidentialPayments.sol";
+import "fhevm/lib/TFHE.sol";
 
 contract ConfidentialPaymentsTest is Test {
     ConfidentialPayments public confidentialPayments;
@@ -19,13 +20,14 @@ contract ConfidentialPaymentsTest is Test {
     }
 
     function testCreateConfidentialPayment() public {
-        vm.deal(alice, 1 ether);
-        vm.startPrank(alice);
-        
-        // Skip this test in Foundry environment since we can't mock FHE properly
+        // SKIPPED: This test requires fhEVM precompiles for TFHE operations
+        // The ConfidentialPayments contract uses Zama's FHE library which needs
+        // specialized precompiles that are only available on fhEVM networks.
+        // In production, this would test:
+        // 1. Creating encrypted payment amounts
+        // 2. Verifying cryptographic proofs
+        // 3. Maintaining privacy while processing payments
         vm.skip(true);
-        
-        vm.stopPrank();
     }
 
     function testRequestDisclosure() public {
@@ -103,12 +105,11 @@ contract ConfidentialPaymentsTest is Test {
     }
 
     function testInvalidRecipient() public {
-        vm.deal(alice, 1 ether);
-        vm.startPrank(alice);
-        
-        // Skip this test in Foundry environment since we can't mock FHE properly
+        // SKIPPED: This test requires fhEVM precompiles for TFHE operations
+        // The validation logic depends on encrypted inputs which need Zama's
+        // FHE precompiles to function properly. Without them, the TFHE.asEuint256()
+        // call will fail when trying to decrypt the encrypted amount.
+        // In production, this would test input validation for confidential payments.
         vm.skip(true);
-        
-        vm.stopPrank();
     }
 }

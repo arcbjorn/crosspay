@@ -7,6 +7,7 @@ import "../src/RelayValidator.sol";
 import "../src/TrancheVault.sol";
 import "../src/PaymentCore.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import "fhevm/lib/TFHE.sol";
 
 contract MockToken is ERC20 {
     constructor() ERC20("Test Token", "TEST") {
@@ -52,13 +53,14 @@ contract IntegrationTest is Test {
     }
 
     function testPrivatePaymentWithValidation() public {
-        vm.deal(alice, 10 ether);
-        vm.startPrank(alice);
-        
-        // Skip this test in Foundry environment since we can't mock FHE properly
+        // SKIPPED: Integration test requiring fhEVM precompiles
+        // This test would verify the complete flow of:
+        // 1. Creating high-value confidential payments with encrypted amounts
+        // 2. Automatic triggering of validator consensus for high-value transactions
+        // 3. Privacy-preserving disclosure mechanisms for compliance
+        // 4. Cross-contract interactions between ConfidentialPayments and RelayValidator
+        // Requires Zama's FHE precompiles for TFHE cryptographic operations.
         vm.skip(true);
-        
-        vm.stopPrank();
     }
 
     function testVaultDepositWithSlashing() public {
