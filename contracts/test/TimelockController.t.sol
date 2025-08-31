@@ -17,7 +17,7 @@ contract MockTarget {
 }
 
 contract TimelockControllerTest is Test {
-    TimelockController public timelock;
+    CrossPayTimelock public timelock;
     MockTarget public target;
     
     address public proposer = address(0x1);
@@ -35,8 +35,7 @@ contract TimelockControllerTest is Test {
         proposers[0] = proposer;
         executors[0] = executor;
         
-        timelock = new TimelockController(
-            24 hours, // minDelay
+        timelock = new CrossPayTimelock(
             proposers,
             executors,
             admin

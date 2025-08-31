@@ -7,6 +7,7 @@ import "../src/ConfidentialPayments.sol";
 import "../src/RelayValidator.sol";
 import "../src/TrancheVault.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import "fhevm/lib/TFHE.sol";
 
 contract MockToken is ERC20 {
     constructor() ERC20("Mock Token", "MOCK") {
@@ -61,7 +62,8 @@ contract BatchOperationsTest is Test {
         payments[0] = BatchOperations.BatchPayment({
             recipient: recipient1,
             token: address(0), // ETH payment
-            encryptedAmount: abi.encode(1 ether),
+            encryptedAmount: einput.wrap(bytes32(0)),
+            inputProof: "",
             metadataURI: "ipfs://test1",
             makePrivate: false
         });
@@ -69,7 +71,8 @@ contract BatchOperationsTest is Test {
         payments[1] = BatchOperations.BatchPayment({
             recipient: recipient2,
             token: address(0), // ETH payment
-            encryptedAmount: abi.encode(2 ether),
+            encryptedAmount: einput.wrap(bytes32(0)),
+            inputProof: "",
             metadataURI: "ipfs://test2",
             makePrivate: false
         });
@@ -117,8 +120,9 @@ contract BatchOperationsTest is Test {
         vm.stopPrank();
         
         // Verify deposits were made
-        assertEq(trancheVault.getUserDeposit(user, TrancheVault.TrancheType.Junior), 100 * 10**18);
-        assertEq(trancheVault.getUserDeposit(user, TrancheVault.TrancheType.Mezzanine), 200 * 10**18);
+        (uint256 junior, uint256 mezzanine, , , ) = trancheVault.getUserPosition(user);
+        assertEq(junior, 100 * 10**18);
+        assertEq(mezzanine, 200 * 10**18);
     }
     
     function testBatchDepositTooLarge() public {
