@@ -5,11 +5,22 @@ export { default as CyberCard } from './CyberCard.svelte';
 export { default as CyberModal } from './CyberModal.svelte';
 export { default as CyberTable } from './CyberTable.svelte';
 export { default as CyberLoader } from './CyberLoader.svelte';
+export { default as CyberErrorBoundary } from './CyberErrorBoundary.svelte';
+
+// New Components
+export { default as CyberChart } from './CyberChart.svelte';
+export { default as CyberToast } from './CyberToast.svelte';
+export { default as ToastContainer } from './ToastContainer.svelte';
+export { default as DataStream } from './DataStream.svelte';
+export { default as GridSystem } from './GridSystem.svelte';
+export { default as NetworkGrid } from './NetworkGrid.svelte';
+export { default as Terminal } from './Terminal.svelte';
 
 // Composite Components
 export { default as PaymentTerminal } from './PaymentTerminal.svelte';
 export { default as SecurityMatrix } from './SecurityMatrix.svelte';
 export { default as RiskMeter } from './RiskMeter.svelte';
+export { default as InvoiceParser } from './InvoiceParser.svelte';
 
 // Component Types
 export interface CyberButtonProps {
