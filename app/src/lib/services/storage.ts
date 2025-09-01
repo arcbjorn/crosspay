@@ -24,6 +24,9 @@ interface FileInfo {
   status: string;
   metadata: Record<string, string>;
   createdAt: string;
+  name: string;
+  type: string;
+  uploadedAt: string;
 }
 
 interface DealStatus {
