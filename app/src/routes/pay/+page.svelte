@@ -294,7 +294,7 @@
                 {#if isResolvingENS}
                   <span class="loading loading-spinner loading-xs"></span> Resolving ENS name...
                 {:else if recipient.endsWith('.eth') && resolvedAddress}
-                  ✅ Resolved to {ensService.formatAddress(resolvedAddress as `0x${string}`)}
+                  ✅ Resolved to {ensService.formatAddress(resolvedAddress)}
                 {:else if recipient.endsWith('.eth') && !resolvedAddress}
                   ❌ Could not resolve ENS name
                 {:else if recipient && !/^0x[a-fA-F0-9]{40}$/.test(recipient) && !recipient.endsWith('.eth')}
