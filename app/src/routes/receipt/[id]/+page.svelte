@@ -6,7 +6,7 @@
   import { PaymentService } from '@services/payment';
   import { getTokenInfo } from '@config/tokens';
   import { onMount } from 'svelte';
-  import type { Payment } from '@types/contracts';
+  import type { Payment } from '$lib/types/contracts';
   import type { Address } from 'viem';
   
   $: paymentId = $page.params.id;
@@ -51,12 +51,12 @@
       const paymentData = await paymentService.getPayment(BigInt(paymentId));
       
       // Get token info for proper symbol
-      const tokenInfo = getTokenInfo(chain.id, paymentData.token);
+      const tokenInfo = getTokenInfo(chain.id, paymentData.token as `0x${string}`);
       
       // Format payment for display
       payment = {
         ...paymentData,
-        amount: paymentService.formatAmount(paymentData.amount, paymentData.token),
+        amount: BigInt(paymentService.formatAmount(paymentData.amount, paymentData.token).replace(/[^0-9]/g, '') || '0'),
         fee: paymentService.formatAmount(paymentData.fee, paymentData.token),
         token: tokenInfo?.symbol || 'TOKEN',
         createdAt: Number(paymentData.createdAt) * 1000,
