@@ -113,13 +113,22 @@ export async function createFhevmInstance(): Promise<FHEInstance> {
 
   try {
     // Try to import real fhevmjs
-    const { createFhevmInstance } = await import('fhevmjs');
-    fheInstance = await createFhevmInstance({
-      network: window.ethereum?.chainId || 1,
-      gatewayUrl: 'https://gateway.devnet.zama.ai'
-    });
+    const fhevmjs = await import('fhevmjs');
+    if ('createFhevmInstance' in fhevmjs) {
+      fheInstance = await (fhevmjs as any).createFhevmInstance({
+        network: window.ethereum?.chainId || 1,
+        gatewayUrl: 'https://gateway.devnet.zama.ai'
+      });
+    } else {
+      throw new Error('createFhevmInstance not found in fhevmjs');
+    }
   } catch (error) {
     console.warn('Using mock FHE instance for development:', error);
+    fheInstance = new MockFHEInstance();
+  }
+
+  // Ensure we always return a valid instance
+  if (!fheInstance) {
     fheInstance = new MockFHEInstance();
   }
 
