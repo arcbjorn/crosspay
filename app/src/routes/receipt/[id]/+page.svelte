@@ -56,13 +56,13 @@
       // Format payment for display
       payment = {
         ...paymentData,
-        amount: BigInt(paymentService.formatAmount(paymentData.amount, paymentData.token).replace(/[^0-9]/g, '') || '0'),
-        fee: paymentService.formatAmount(paymentData.fee, paymentData.token),
+        amount: paymentData.amount as bigint,
+        fee: paymentService.formatAmount(paymentData.fee, paymentData.token as `0x${string}`),
         token: tokenInfo?.symbol || 'TOKEN',
-        createdAt: Number(paymentData.createdAt) * 1000,
-        completedAt: paymentData.completedAt > 0n ? Number(paymentData.completedAt) * 1000 : null,
+        createdAt: BigInt(Number(paymentData.createdAt) * 1000),
+        completedAt: paymentData.completedAt > 0n ? BigInt(Number(paymentData.completedAt) * 1000) : null,
         chainId: chain.id,
-      };
+      } as Payment;
       
     } catch (err) {
       console.error('Failed to load payment:', err);
