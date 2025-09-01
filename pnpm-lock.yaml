@@ -29,6 +29,18 @@ importers:
 
   app:
     dependencies:
+      '@fontsource/ibm-plex-sans':
+        specifier: ^5.2.6
+        version: 5.2.6
+      '@fontsource/inter':
+        specifier: ^5.2.6
+        version: 5.2.6
+      '@fontsource/jetbrains-mono':
+        specifier: ^5.2.6
+        version: 5.2.6
+      '@fontsource/space-mono':
+        specifier: ^5.2.8
+        version: 5.2.8
       '@playwright/test':
         specifier: ^1.55.0
         version: 1.55.0
@@ -448,6 +460,18 @@ packages:
   '@ethereumjs/util@8.1.0':
     resolution: {integrity: sha512-zQ0IqbdX8FZ9aw11vP+dZkKDkS+kgIvQPHnSAXzP9pLu+Rfu3D3XEeLbicvoXJTYnhZiPmsZUxgdzXwNKxRPbA==}
     engines: {node: '>=14'}
+
+  '@fontsource/ibm-plex-sans@5.2.6':
+    resolution: {integrity: sha512-yclktpagJncROwdWHHEfPsrIfoo3uiIeDFchvmjNmTW/YMBfLYWJnUv19EAqPNhGizdtmcH9FjzOR2094Z2uPg==}
+
+  '@fontsource/inter@5.2.6':
+    resolution: {integrity: sha512-CZs9S1CrjD0jPwsNy9W6j0BhsmRSQrgwlTNkgQXTsAeDRM42LBRLo3eo9gCzfH4GvV7zpyf78Ozfl773826csw==}
+
+  '@fontsource/jetbrains-mono@5.2.6':
+    resolution: {integrity: sha512-nz//dBr99hXZmHp10wgNI00qThWImkzRR5PQjvRM+rpmuHO5rYBJCqPPWufidCvmkkryXx/GOP/lgqsM3R3Org==}
+
+  '@fontsource/space-mono@5.2.8':
+    resolution: {integrity: sha512-25X0fg1+kxxLes9/c6AozhrrAuBW1uLaOL584IRg4DZxVxNOMzcS3mHS1UtmsyTwtU2HpiIt9Kv23Q+7xQO+hg==}
 
   '@gemini-wallet/core@0.2.0':
     resolution: {integrity: sha512-vv9aozWnKrrPWQ3vIFcWk7yta4hQW1Ie0fsNNPeXnjAxkbXr2hqMagEptLuMxpEP2W3mnRu05VDNKzcvAuuZDw==}
@@ -3762,6 +3786,14 @@ snapshots:
       '@ethereumjs/rlp': 4.0.1
       ethereum-cryptography: 2.2.1
       micro-ftch: 0.3.1
+
+  '@fontsource/ibm-plex-sans@5.2.6': {}
+
+  '@fontsource/inter@5.2.6': {}
+
+  '@fontsource/jetbrains-mono@5.2.6': {}
+
+  '@fontsource/space-mono@5.2.8': {}
 
   '@gemini-wallet/core@0.2.0(viem@2.36.0(bufferutil@4.0.9)(typescript@5.9.2)(utf-8-validate@5.0.10)(zod@3.22.4))':
     dependencies:
