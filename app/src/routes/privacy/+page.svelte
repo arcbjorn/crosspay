@@ -112,7 +112,10 @@
           <div 
             class="payment-item" 
             class:private={payment.isPrivate}
+            role="button"
+            tabindex="0"
             on:click={() => selectPayment(payment.id)}
+            on:keydown={(e) => (e.key === 'Enter' || e.key === ' ') && selectPayment(payment.id)}
           >
             <div class="payment-info">
               <div class="payment-id">#{payment.id}</div>
