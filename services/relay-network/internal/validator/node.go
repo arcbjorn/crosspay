@@ -11,9 +11,9 @@ import (
 	"time"
 
 	"github.com/crosspay/relay-network/internal/config"
+	"github.com/crosspay/relay-network/internal/p2p"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
 )
@@ -113,16 +113,22 @@ func (n *Node) RegisterValidator(ctx context.Context, stakeAmount *big.Int) erro
 	return nil
 }
 
-func (n *Node) ProcessValidationRequest(req *ValidationRequest) error {
+func (n *Node) ProcessValidationRequest(msg *p2p.ValidationMessage) error {
 	n.mutex.Lock()
 	defer n.mutex.Unlock()
 
-	if _, exists := n.pendingValidations[req.ID]; exists {
-		return fmt.Errorf("validation request %d already exists", req.ID)
+	if _, exists := n.pendingValidations[msg.RequestID]; exists {
+		return fmt.Errorf("validation request %d already exists", msg.RequestID)
 	}
 
-	if time.Now().After(req.Deadline) {
-		return fmt.Errorf("validation request %d has expired", req.ID)
+	// Convert ValidationMessage to ValidationRequest for internal processing
+	req := &ValidationRequest{
+		ID:          msg.RequestID,
+		PaymentID:   msg.PaymentID,
+		MessageHash: msg.MessageHash,
+		RequiredSigs: 2, // Default required signatures
+		Deadline:    msg.Timestamp.Add(5 * time.Minute), // Set reasonable deadline
+		IsHighValue: false, // Can be determined based on amount if needed
 	}
 
 	n.pendingValidations[req.ID] = req
@@ -249,19 +255,19 @@ func (n *Node) checkRegistration(ctx context.Context) error {
 	return nil
 }
 
-func (n *Node) GetAddress() common.Address {
-	return n.address
+func (n *Node) GetAddress() string {
+	return n.address.Hex()
 }
 
 func (n *Node) GetStatus() string {
 	return n.status
 }
 
-func (n *Node) GetStake() *big.Int {
+func (n *Node) GetStake() string {
 	if n.stake == nil {
-		return big.NewInt(0)
+		return "0"
 	}
-	return new(big.Int).Set(n.stake)
+	return n.stake.String()
 }
 
 func (n *Node) IsRegistered() bool {
