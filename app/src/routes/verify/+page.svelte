@@ -75,12 +75,12 @@
       <h2 class="card-title mb-4">Verify Receipt</h2>
       
       <div class="form-control">
-        <label class="label" for="receiptId">
+        <label class="label" for="receipt-id-input">
           <span class="label-text">Receipt ID or Content Hash</span>
         </label>
         <div class="flex gap-4">
           <input
-            id="receiptId"
+            id="receipt-id-input"
             type="text"
             placeholder="Enter receipt ID, payment ID, or content hash"
             class="input input-bordered flex-1"
@@ -100,11 +100,11 @@
             {/if}
           </button>
         </div>
-        <label class="label">
+        <div class="label">
           <span class="label-text-alt">
             You can verify receipts using their unique ID, payment ID, or content hash
           </span>
-        </label>
+        </div>
       </div>
     </div>
   </div>
@@ -143,28 +143,28 @@
           <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div class="space-y-4">
               <div>
-                <label class="block text-sm font-medium text-base-content/70 mb-1">Payment ID</label>
+                <div class="block text-sm font-medium text-base-content/70 mb-1">Payment ID</div>
                 <div class="font-mono text-sm bg-base-200 p-2 rounded">
                   {verificationResult.paymentId}
                 </div>
               </div>
               
               <div>
-                <label class="block text-sm font-medium text-base-content/70 mb-1">Sender</label>
+                <div class="block text-sm font-medium text-base-content/70 mb-1">Sender</div>
                 <div class="font-mono text-sm bg-base-200 p-2 rounded break-all">
                   {verificationResult.sender}
                 </div>
               </div>
               
               <div>
-                <label class="block text-sm font-medium text-base-content/70 mb-1">Recipient</label>
+                <div class="block text-sm font-medium text-base-content/70 mb-1">Recipient</div>
                 <div class="font-mono text-sm bg-base-200 p-2 rounded break-all">
                   {verificationResult.recipient}
                 </div>
               </div>
               
               <div>
-                <label class="block text-sm font-medium text-base-content/70 mb-1">Amount</label>
+                <div class="block text-sm font-medium text-base-content/70 mb-1">Amount</div>
                 <div class="font-mono text-lg font-bold text-primary">
                   {verificationResult.amount}
                 </div>
@@ -173,28 +173,28 @@
 
             <div class="space-y-4">
               <div>
-                <label class="block text-sm font-medium text-base-content/70 mb-1">Timestamp</label>
+                <div class="block text-sm font-medium text-base-content/70 mb-1">Timestamp</div>
                 <div class="text-sm bg-base-200 p-2 rounded">
                   {new Date(verificationResult.timestamp).toLocaleString()}
                 </div>
               </div>
               
               <div>
-                <label class="block text-sm font-medium text-base-content/70 mb-1">Content Hash</label>
+                <div class="block text-sm font-medium text-base-content/70 mb-1">Content Hash</div>
                 <div class="font-mono text-xs bg-base-200 p-2 rounded break-all">
                   {verificationResult.contentHash}
                 </div>
               </div>
               
               <div>
-                <label class="block text-sm font-medium text-base-content/70 mb-1">Metadata CID</label>
+                <div class="block text-sm font-medium text-base-content/70 mb-1">Metadata CID</div>
                 <div class="font-mono text-xs bg-base-200 p-2 rounded break-all">
                   {verificationResult.metadataCID}
                 </div>
               </div>
               
               <div>
-                <label class="block text-sm font-medium text-base-content/70 mb-1">Compliance</label>
+                <div class="block text-sm font-medium text-base-content/70 mb-1">Compliance</div>
                 <div class="text-sm bg-base-200 p-2 rounded">
                   {verificationResult.complianceFields}
                 </div>
@@ -204,7 +204,7 @@
 
           <!-- Signature Verification -->
           <div class="mt-6">
-            <label class="block text-sm font-medium text-base-content/70 mb-2">Cryptographic Signature</label>
+            <div class="block text-sm font-medium text-base-content/70 mb-2">Cryptographic Signature</div>
             <div class="bg-base-200 p-4 rounded">
               <div class="font-mono text-xs break-all mb-2">
                 {verificationResult.signature}
