@@ -14,6 +14,7 @@
   $: chain = $chainStore;
   
   let payment: Payment | null = null;
+  let paymentChainId = 4202;
   let loading = true;
   let error = '';
   
@@ -51,38 +52,43 @@
       const paymentData = await paymentService.getPayment(BigInt(paymentId));
       
       // Get token info for proper symbol
-      const tokenInfo = getTokenInfo(chain.id, paymentData.token as `0x${string}`);
+      const tokenInfo = getTokenInfo(chain.id, paymentData.token);
       
       // Format payment for display
       payment = {
         ...paymentData,
-        amount: paymentData.amount as bigint,
-        fee: paymentService.formatAmount(paymentData.fee, paymentData.token as `0x${string}`),
-        token: tokenInfo?.symbol || 'TOKEN',
-        createdAt: BigInt(Number(paymentData.createdAt) * 1000),
-        completedAt: paymentData.completedAt > 0n ? BigInt(Number(paymentData.completedAt) * 1000) : null,
-        chainId: chain.id,
-      } as Payment;
+        token: tokenInfo?.symbol || paymentData.token,
+      };
+      paymentChainId = chain.id;
       
     } catch (err) {
       console.error('Failed to load payment:', err);
       error = 'Failed to load payment. Using mock data.';
       // Use mock data as fallback
       payment = {
-        ...mockPayment,
-        amount: mockPayment.amount,
-        fee: mockPayment.fee,
+        id: BigInt(mockPayment.id),
+        sender: mockPayment.sender,
+        recipient: mockPayment.recipient,
         token: mockPayment.token,
-        createdAt: mockPayment.createdAt,
-        completedAt: mockPayment.completedAt,
-        chainId: mockPayment.chainId,
-      } as any;
+        amount: BigInt(mockPayment.amount.replace('.', '').padEnd(18, '0')),
+        fee: BigInt(mockPayment.fee.replace('.', '').padEnd(18, '0')),
+        status: 'completed',
+        createdAt: BigInt(mockPayment.createdAt),
+        completedAt: BigInt(mockPayment.completedAt),
+        metadataURI: mockPayment.metadataURI,
+        receiptCID: '',
+        senderENS: '',
+        recipientENS: '',
+        oraclePrice: '',
+        randomSeed: '',
+      };
+      paymentChainId = mockPayment.chainId;
     } finally {
       loading = false;
     }
   };
   
-  $: paymentChain = payment ? getChain(payment.chainId) : getChain(mockPayment.chainId);
+  $: paymentChain = getChain(paymentChainId);
   
   onMount(() => {
     loadPayment();
@@ -91,9 +97,25 @@
   const formatAddress = (address: string) => {
     return `${address.slice(0, 8)}...${address.slice(-6)}`;
   };
+
+  const formatBigIntAmount = (amount: bigint | string | number, decimals = 18) => {
+    if (typeof amount === 'string' || typeof amount === 'number') {
+      return amount.toString();
+    }
+    // Convert from wei to tokens
+    const divisor = 10n ** BigInt(decimals);
+    const whole = amount / divisor;
+    const remainder = amount % divisor;
+    if (remainder === 0n) {
+      return whole.toString();
+    }
+    const decimalPart = remainder.toString().padStart(decimals, '0').replace(/0+$/, '');
+    return decimalPart ? `${whole}.${decimalPart}` : whole.toString();
+  };
   
-  const formatDate = (timestamp: number) => {
-    return new Date(timestamp).toLocaleString('en-US', {
+  const formatDate = (timestamp: number | bigint) => {
+    const ts = typeof timestamp === 'bigint' ? Number(timestamp) : timestamp;
+    return new Date(ts).toLocaleString('en-US', {
       year: 'numeric',
       month: 'long',
       day: 'numeric',
@@ -223,7 +245,7 @@
         <div class="text-right">
           <div class="text-sm opacity-70">Network</div>
           <div class="badge badge-outline">
-            {paymentChain?.name || `Chain ${currentPayment.chainId}`}
+            {paymentChain?.name || `Chain ${paymentChainId}`}
           </div>
         </div>
       </div>
@@ -237,16 +259,16 @@
             <div class="space-y-3">
               <div class="flex justify-between">
                 <span class="text-sm opacity-70">Amount</span>
-                <span class="font-mono font-bold">{currentPayment.amount} {currentPayment.token}</span>
+                <span class="font-mono font-bold">{formatBigIntAmount(currentPayment.amount)} {currentPayment.token}</span>
               </div>
               <div class="flex justify-between">
                 <span class="text-sm opacity-70">Protocol Fee</span>
-                <span class="font-mono">{currentPayment.fee} {currentPayment.token}</span>
+                <span class="font-mono">{formatBigIntAmount(currentPayment.fee)} {currentPayment.token}</span>
               </div>
               <div class="divider my-2"></div>
               <div class="flex justify-between font-bold">
                 <span>Total Processed</span>
-                <span class="font-mono">{(parseFloat(currentPayment.amount) + parseFloat(currentPayment.fee)).toFixed(4)} {currentPayment.token}</span>
+                <span class="font-mono">{formatBigIntAmount((typeof currentPayment.amount === 'bigint' ? currentPayment.amount : BigInt(0)) + (typeof currentPayment.fee === 'bigint' ? currentPayment.fee : BigInt(0)))} {currentPayment.token}</span>
               </div>
             </div>
           </div>
@@ -339,7 +361,7 @@
                 <div>
                   <div class="text-sm opacity-70">Processing Time</div>
                   <div class="text-sm">
-                    {Math.round((currentPayment.completedAt - currentPayment.createdAt) / 60000)} minutes
+                    {Math.round((Number(currentPayment.completedAt) - Number(currentPayment.createdAt)) / 60000)} minutes
                   </div>
                 </div>
               {/if}
@@ -554,7 +576,7 @@
           <div class="space-y-1">
             <div class="flex justify-between">
               <span>Chain ID:</span>
-              <span class="font-mono">{currentPayment.chainId}</span>
+              <span class="font-mono">{paymentChainId}</span>
             </div>
             <div class="flex justify-between">
               <span>Network:</span>
