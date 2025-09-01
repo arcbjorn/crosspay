@@ -83,6 +83,9 @@
               uploadedAt: result.timestamp,
             },
             createdAt: result.timestamp,
+            name: file.name,
+            type: file.type,
+            uploadedAt: result.timestamp,
           };
 
           uploadedReceipts = [fileInfo, ...uploadedReceipts];
@@ -92,14 +95,21 @@
           // Fallback mock upload
           const mockCID = `Qm${Math.random().toString(36).substring(2, 15)}`;
           
-          const receipt = {
-            id: Date.now() + Math.random(),
-            name: file.name,
-            size: file.size,
-            type: file.type,
+          const receipt: FileInfo = {
             cid: mockCID,
-            uploadedAt: new Date().toISOString(),
-            status: 'stored'
+            size: file.size,
+            dealId: '',
+            storageCost: '0.001 FIL',
+            status: 'stored',
+            metadata: {
+              filename: file.name,
+              contentType: file.type,
+              uploadedAt: new Date().toISOString(),
+            },
+            createdAt: new Date().toISOString(),
+            name: file.name,
+            type: file.type,
+            uploadedAt: new Date().toISOString()
           };
 
           uploadedReceipts = [receipt, ...uploadedReceipts];
@@ -174,7 +184,7 @@
       <div 
         class="border-2 border-dashed border-base-300 rounded-lg p-8 text-center transition-colors"
         class:border-primary={dragOver}
-        class:bg-primary/5={dragOver}
+        class:bg-primary-5={dragOver}
         on:dragover={handleDragOver}
         on:dragleave={handleDragLeave}
         on:drop={handleDrop}
