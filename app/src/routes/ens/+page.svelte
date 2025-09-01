@@ -139,12 +139,13 @@
         <h2 class="card-title mb-4">ENS Resolution</h2>
         
         <div class="form-control">
-          <label class="label">
+          <label class="label" for="ens-search">
             <span class="label-text">ENS Name or Address</span>
           </label>
           <div class="flex gap-2">
             <input
               type="text"
+              id="ens-search"
               placeholder="vitalik.eth or 0x..."
               class="input input-bordered flex-1"
               bind:value={searchQuery}
@@ -260,11 +261,12 @@
       </p>
 
       <div class="form-control max-w-md">
-        <label class="label">
+        <label class="label" for="subname-input">
           <span class="label-text">Choose your subname</span>
         </label>
         <div class="flex">
           <input
+            id="subname-input"
             type="text"
             placeholder="yourname"
             class="input input-bordered rounded-r-none flex-1"
@@ -276,9 +278,9 @@
           </span>
         </div>
         {#if subname}
-          <label class="label">
+          <div class="label">
             <span class="label-text-alt">Your subname: <strong>{subname}.{domain}</strong></span>
-          </label>
+          </div>
         {/if}
       </div>
 
