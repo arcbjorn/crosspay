@@ -15,6 +15,10 @@
   
   let payment: Payment | null = null;
   let paymentChainId = 4202;
+  let txHash = '';
+  let blockNumber = 0;
+  let gasUsed = 0;
+  let gasPrice = '';
   let loading = true;
   let error = '';
   
@@ -60,6 +64,11 @@
         token: tokenInfo?.symbol || paymentData.token,
       };
       paymentChainId = chain.id;
+      // Set transaction details if available
+      txHash = paymentData.txHash || '';
+      blockNumber = paymentData.blockNumber || 0;
+      gasUsed = paymentData.gasUsed || 0;
+      gasPrice = paymentData.gasPrice || '';
       
     } catch (err) {
       console.error('Failed to load payment:', err);
@@ -83,6 +92,10 @@
         randomSeed: '',
       };
       paymentChainId = mockPayment.chainId;
+      txHash = mockPayment.txHash;
+      blockNumber = mockPayment.blockNumber;
+      gasUsed = mockPayment.gasUsed;
+      gasPrice = mockPayment.gasPrice;
     } finally {
       loading = false;
     }
@@ -315,16 +328,16 @@
                 <div class="text-sm opacity-70">Transaction Hash</div>
                 <div class="font-mono text-sm flex items-center gap-2">
                   <a 
-                    href={getExplorerUrl(currentPayment.txHash)} 
+                    href={getExplorerUrl(txHash)} 
                     target="_blank" 
                     rel="noopener noreferrer"
                     class="link link-primary"
                   >
-                    {formatAddress(currentPayment.txHash)}
+                    {formatAddress(txHash)}
                   </a>
                   <button 
                     class="btn btn-ghost btn-xs" 
-                    on:click={() => copyToClipboard(currentPayment.txHash)}
+                    on:click={() => copyToClipboard(txHash)}
                     title="Copy hash"
                   >
                     📋
@@ -333,15 +346,15 @@
               </div>
               <div class="flex justify-between">
                 <span class="text-sm opacity-70">Block Number</span>
-                <span class="font-mono text-sm">{currentPayment.blockNumber?.toLocaleString()}</span>
+                <span class="font-mono text-sm">{blockNumber?.toLocaleString()}</span>
               </div>
               <div class="flex justify-between">
                 <span class="text-sm opacity-70">Gas Used</span>
-                <span class="font-mono text-sm">{currentPayment.gasUsed?.toLocaleString()}</span>
+                <span class="font-mono text-sm">{gasUsed?.toLocaleString()}</span>
               </div>
               <div class="flex justify-between">
                 <span class="text-sm opacity-70">Gas Price</span>
-                <span class="font-mono text-sm">{(parseInt(currentPayment.gasPrice || '0') / 1e9).toFixed(2)} Gwei</span>
+                <span class="font-mono text-sm">{(parseInt(gasPrice || '0') / 1e9).toFixed(2)} Gwei</span>
               </div>
             </div>
           </div>
@@ -526,7 +539,7 @@
           ← Back to Receipts
         </a>
         <a 
-          href={getExplorerUrl(currentPayment.txHash)} 
+          href={getExplorerUrl(txHash)} 
           target="_blank" 
           rel="noopener noreferrer"
           class="btn btn-primary"
