@@ -298,10 +298,11 @@
           <h3 class="text-lg font-semibold mb-3">Submit New Proof</h3>
           
           <div class="form-control w-full mb-4">
-            <label class="label">
+            <label class="label" for="proof-id-input">
               <span class="label-text">Proof ID</span>
             </label>
             <input 
+              id="proof-id-input"
               bind:value={proofId}
               type="text" 
               placeholder="Enter unique proof identifier" 
@@ -310,10 +311,11 @@
           </div>
 
           <div class="form-control w-full mb-4">
-            <label class="label">
+            <label class="label" for="merkle-root-input">
               <span class="label-text">Merkle Root</span>
             </label>
             <input 
+              id="merkle-root-input"
               bind:value={merkleRoot}
               type="text" 
               placeholder="0x..." 
@@ -322,10 +324,11 @@
           </div>
 
           <div class="form-control w-full mb-4">
-            <label class="label">
+            <label class="label" for="proof-data-input">
               <span class="label-text">Proof Data (comma-separated)</span>
             </label>
             <textarea 
+              id="proof-data-input"
               bind:value={proofData}
               placeholder="0x123..., 0x456..., 0x789..." 
               class="textarea textarea-bordered w-full font-mono text-sm" 
@@ -347,10 +350,11 @@
           <h3 class="text-lg font-semibold mb-3">Verify Existing Proof</h3>
           
           <div class="form-control w-full mb-4">
-            <label class="label">
+            <label class="label" for="verify-proof-id-input">
               <span class="label-text">Proof ID to Verify</span>
             </label>
             <input 
+              id="verify-proof-id-input"
               bind:value={proofId}
               type="text" 
               placeholder="Enter proof ID to verify" 
