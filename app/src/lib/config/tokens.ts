@@ -95,7 +95,7 @@ export function getSupportedTokens(chainId: number): TokenInfo[] {
 /**
  * Get token info by address and chain
  */
-export function getTokenInfo(chainId: number, tokenAddress: Address): TokenInfo | undefined {
+export function getTokenInfo(chainId: number, tokenAddress: string): TokenInfo | undefined {
   const tokens = getSupportedTokens(chainId);
   return tokens.find(token => 
     token.address.toLowerCase() === tokenAddress.toLowerCase()
@@ -113,7 +113,7 @@ export function getNativeToken(chainId: number): TokenInfo | undefined {
 /**
  * Check if a token is native (ETH, cBTC, etc.)
  */
-export function isNativeToken(tokenAddress: Address): boolean {
+export function isNativeToken(tokenAddress: string): boolean {
   return tokenAddress === NATIVE_TOKEN_ADDRESS || 
          tokenAddress.toLowerCase() === NATIVE_TOKEN_ADDRESS.toLowerCase();
 }
