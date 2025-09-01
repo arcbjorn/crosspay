@@ -259,11 +259,11 @@
         <form on:submit|preventDefault={handleSubmit} class="space-y-6">
           <!-- Chain Selection -->
           <div class="form-control">
-            <label class="label" for="chain">
+            <label class="label" for="chain-select">
               <span class="label-text">Network</span>
             </label>
             <select 
-              id="chain"
+              id="chain-select"
               class="select select-bordered w-full"
               bind:value={selectedChain}
             >
@@ -289,7 +289,7 @@
               bind:value={recipient}
               required
             />
-            <label class="label">
+            <div class="label">
               <span class="label-text-alt">
                 {#if isResolvingENS}
                   <span class="loading loading-spinner loading-xs"></span> Resolving ENS name...
@@ -301,7 +301,7 @@
                   Please enter a valid address or ENS name
                 {/if}
               </span>
-            </label>
+            </div>
           </div>
           
           <!-- Token Selection -->
@@ -313,11 +313,11 @@
           
           <!-- Amount -->
           <div class="form-control">
-            <label class="label" for="amount">
+            <label class="label" for="amount-input">
               <span class="label-text">Amount</span>
             </label>
             <input
-              id="amount"
+              id="amount-input"
               type="number"
               step="0.001"
               min="0"
@@ -326,28 +326,28 @@
               bind:value={amount}
               required
             />
-            <label class="label">
+            <div class="label">
               <span class="label-text-alt">
                 {#if selectedTokenInfo}
                   Enter amount in {selectedTokenInfo.symbol}
                 {/if}
               </span>
-            </label>
+            </div>
           </div>
           
           <!-- ENS Names (Optional) -->
           <div class="form-control">
-            <label class="label" for="senderENS">
+            <label class="label" for="sender-ens-input">
               <span class="label-text">Your ENS Name (Optional)</span>
             </label>
             <input
-              id="senderENS"
+              id="sender-ens-input"
               type="text"
               placeholder={senderENSFromWallet || "alice.eth"}
               class="input input-bordered w-full"
               bind:value={senderENS}
             />
-            <label class="label">
+            <div class="label">
               <span class="label-text-alt">
                 {#if senderENSFromWallet && !senderENS}
                   Found: {senderENSFromWallet} (auto-filled)
@@ -355,7 +355,7 @@
                   Display name for sender in receipt
                 {/if}
               </span>
-            </label>
+            </div>
             {#if senderENSFromWallet && !senderENS}
               <button 
                 type="button" 
@@ -369,19 +369,19 @@
 
           <!-- Metadata URI -->
           <div class="form-control">
-            <label class="label" for="metadata">
+            <label class="label" for="metadata-uri-input">
               <span class="label-text">Metadata URI (Optional)</span>
             </label>
             <input
-              id="metadata"
+              id="metadata-uri-input"
               type="url"
               placeholder="ipfs://... or https://..."
               class="input input-bordered w-full"
               bind:value={metadataURI}
             />
-            <label class="label">
+            <div class="label">
               <span class="label-text-alt">Link to additional payment information</span>
-            </label>
+            </div>
           </div>
           
           <!-- Current Exchange Rates -->
