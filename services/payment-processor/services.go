@@ -27,6 +27,7 @@ func initENSClient() {
 }
 
 func initDatabase() {
-	// Mock database initialization
-	log.Println("Database initialization completed (mock)")
+	if err := initPaymentDB(); err != nil {
+		log.Fatalf("Failed to initialize database: %v", err)
+	}
 }
