@@ -24,12 +24,12 @@
 							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h8m-8 6h16" />
 						</svg>
 					</div>
-					<ul tabindex="0" class="menu menu-sm dropdown-content mt-3 z-[1] p-2 shadow bg-base-100 rounded-box w-52">
+					<ul role="menu" class="menu menu-sm dropdown-content mt-3 z-[1] p-2 shadow bg-base-100 rounded-box w-52">
 						<li><a href="/">Home</a></li>
 						<li><a href="/pay">Pay</a></li>
 						<li><a href="/receipts">Receipts</a></li>
 						<li>
-							<a>Services</a>
+							<span>Services</span>
 							<ul class="p-2">
 								<li><a href="/oracles">Oracle Feeds</a></li>
 								<li><a href="/storage">Storage</a></li>
