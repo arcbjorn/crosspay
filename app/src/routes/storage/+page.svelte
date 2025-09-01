@@ -187,6 +187,8 @@
         class:bg-primary-5={dragOver}
         on:dragover={handleDragOver}
         on:dragleave={handleDragLeave}
+        role="button"
+        tabindex="0"
         on:drop={handleDrop}
       >
         {#if isLoading}
