@@ -3,8 +3,9 @@ package metrics
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log"
-	"math/big"
+	"net/http"
 	"sync"
 	"time"
 
