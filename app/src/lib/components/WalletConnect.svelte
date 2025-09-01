@@ -50,7 +50,7 @@
           <span class="font-mono text-sm">{formatAddress(wallet.address || '')}</span>
         </div>
       </div>
-      <ul tabindex="0" class="dropdown-content menu p-2 shadow bg-base-100 rounded-box w-80">
+      <ul role="menu" class="dropdown-content menu p-2 shadow bg-base-100 rounded-box w-80">
         <li class="menu-title">Wallet Info</li>
         <li>
           <div class="flex flex-col items-start">
@@ -95,7 +95,7 @@
         </button>
       </div>
       {#if showWalletOptions}
-        <ul tabindex="0" class="dropdown-content menu p-2 shadow bg-base-100 rounded-box w-60">
+        <ul role="menu" class="dropdown-content menu p-2 shadow bg-base-100 rounded-box w-60">
           <li class="menu-title">Choose Wallet</li>
           <li>
             <button on:click={() => handleConnect('metamask')}>
