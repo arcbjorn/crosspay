@@ -1,18 +1,23 @@
 {
-  "name": "@crosspay/types",
-  "version": "0.1.0",
-  "description": "Shared TypeScript types for CrossPay Protocol",
-  "main": "index.ts",
-  "types": "index.ts",
-  "scripts": {
-    "build": "tsc",
-    "typecheck": "tsc --noEmit"
-  },
-  "keywords": ["typescript", "types", "contracts", "payments"],
-  "author": "",
-  "license": "MIT",
-  "packageManager": "pnpm@10.15.0",
-  "devDependencies": {
-    "typescript": "^5.0.0"
-  }
+	"name": "@crosspay/types",
+	"version": "0.1.0",
+	"description": "Shared TypeScript types for CrossPay Protocol",
+	"main": "index.ts",
+	"types": "index.ts",
+	"scripts": {
+		"build": "tsc",
+		"typecheck": "tsc --noEmit"
+	},
+	"keywords": [
+		"typescript",
+		"types",
+		"contracts",
+		"payments"
+	],
+	"author": "",
+	"license": "MIT",
+	"packageManager": "pnpm@10.15.0",
+	"devDependencies": {
+		"typescript": "^5.0.0"
+	}
 }

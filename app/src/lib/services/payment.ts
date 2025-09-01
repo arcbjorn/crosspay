@@ -1,314 +1,329 @@
-import { parseEther, formatEther, parseEventLogs, type Address, parseUnits, formatUnits } from 'viem';
+import {
+	parseEther,
+	formatEther,
+	parseEventLogs,
+	type Address,
+	parseUnits,
+	formatUnits
+} from 'viem';
 import { getPublicClient, getWalletClient, getContractAddress, PaymentCoreABI } from '@contracts';
 import { oracleService } from '@services/oracle';
 import { getTokenInfo, isNativeToken } from '@config/tokens';
 import type { Payment, PaymentStatus } from '@packages/types/contracts';
 
 export class PaymentService {
-  constructor(private chainId: number) {}
+	constructor(private chainId: number) {}
 
-  async createPayment(
-    recipient: Address,
-    token: Address,
-    amount: string,
-    metadataURI: string,
-    senderAddress: Address,
-    senderENS?: string,
-    recipientENS?: string
-  ): Promise<{ hash: string; paymentId: bigint }> {
-    const walletClient = getWalletClient(this.chainId);
-    const publicClient = getPublicClient(this.chainId);
-    const contractAddress = getContractAddress(this.chainId, 'PaymentCore');
+	async createPayment(
+		recipient: Address,
+		token: Address,
+		amount: string,
+		metadataURI: string,
+		senderAddress: Address,
+		senderENS?: string,
+		recipientENS?: string
+	): Promise<{ hash: string; paymentId: bigint }> {
+		const walletClient = getWalletClient(this.chainId);
+		const publicClient = getPublicClient(this.chainId);
+		const contractAddress = getContractAddress(this.chainId, 'PaymentCore');
 
-    // Get token info to determine decimals
-    const tokenInfo = getTokenInfo(this.chainId, token);
-    const decimals = tokenInfo?.decimals || 18; // Default to 18 if token not found
-    const isNativeToken_ = isNativeToken(token);
-    
-    // Parse amount with correct decimals
-    const parsedAmount = parseUnits(amount, decimals);
-    // Protocol fee: 10 bps (0.1%)
-    const fee = (parsedAmount * 10n) / 10000n;
-    const totalValue = isNativeToken_ ? parsedAmount + fee : 0n;
-    
-    try {
-      // Get price snapshot from oracle
-      let oraclePrice = '0';
-      try {
-        const tokenSymbol = tokenInfo?.symbol || 'ETH'; // Use actual token symbol
-        const priceData = await oracleService.getCurrentPrice(`${tokenSymbol}/USD`);
-        if (priceData) {
-          oraclePrice = priceData.price.toString(); // Store as string
-        }
-      } catch (oracleError) {
-        console.warn('Failed to get oracle price:', oracleError);
-        // Continue without price snapshot
-      }
+		// Get token info to determine decimals
+		const tokenInfo = getTokenInfo(this.chainId, token);
+		const decimals = tokenInfo?.decimals || 18; // Default to 18 if token not found
+		const isNativeToken_ = isNativeToken(token);
 
-      // Handle ERC20 token approval if needed
-      if (!isNativeToken_) {
-        await this.approveTokenIfNeeded(token, parsedAmount + fee, senderAddress);
-      }
-      const { request } = await publicClient.simulateContract({
-        address: contractAddress,
-        abi: PaymentCoreABI,
-        functionName: 'createPayment',
-        args: [recipient, token, parsedAmount, metadataURI, senderENS || '', recipientENS || ''],
-        account: senderAddress,
-        value: totalValue,
-      });
+		// Parse amount with correct decimals
+		const parsedAmount = parseUnits(amount, decimals);
+		// Protocol fee: 10 bps (0.1%)
+		const fee = (parsedAmount * 10n) / 10000n;
+		const totalValue = isNativeToken_ ? parsedAmount + fee : 0n;
 
-      const hash = await walletClient.writeContract(request);
+		try {
+			// Get price snapshot from oracle
+			let oraclePrice = '0';
+			try {
+				const tokenSymbol = tokenInfo?.symbol || 'ETH'; // Use actual token symbol
+				const priceData = await oracleService.getCurrentPrice(`${tokenSymbol}/USD`);
+				if (priceData) {
+					oraclePrice = priceData.price.toString(); // Store as string
+				}
+			} catch (oracleError) {
+				console.warn('Failed to get oracle price:', oracleError);
+				// Continue without price snapshot
+			}
 
-      // Wait for transaction receipt to get payment ID
-      const receipt = await publicClient.waitForTransactionReceipt({ hash });
+			// Handle ERC20 token approval if needed
+			if (!isNativeToken_) {
+				await this.approveTokenIfNeeded(token, parsedAmount + fee, senderAddress);
+			}
+			const { request } = await publicClient.simulateContract({
+				address: contractAddress,
+				abi: PaymentCoreABI,
+				functionName: 'createPayment',
+				args: [recipient, token, parsedAmount, metadataURI, senderENS || '', recipientENS || ''],
+				account: senderAddress,
+				value: totalValue
+			});
 
-      // Parse PaymentCreated event to get payment ID
-      const parsedLogs = parseEventLogs({
-        abi: PaymentCoreABI,
-        logs: receipt.logs,
-        eventName: 'PaymentCreated'
-      });
+			const hash = await walletClient.writeContract(request);
 
-      if (!parsedLogs.length) throw new Error('PaymentCreated event not found');
-      const { args } = parsedLogs[0] as any;
+			// Wait for transaction receipt to get payment ID
+			const receipt = await publicClient.waitForTransactionReceipt({ hash });
 
-      const paymentId = (args.id ?? args.paymentId) as bigint;
+			// Parse PaymentCreated event to get payment ID
+			const parsedLogs = parseEventLogs({
+				abi: PaymentCoreABI,
+				logs: receipt.logs,
+				eventName: 'PaymentCreated'
+			});
 
-      // Set oracle price if we have one (owner-only function for demo)
-      if (parseFloat(oraclePrice) > 0) {
-        try {
-          await this.setOraclePrice(paymentId, BigInt(Math.round(parseFloat(oraclePrice) * 1e8)), senderAddress);
-        } catch (oraclePriceError) {
-          console.warn('Failed to set oracle price:', oraclePriceError);
-          // Continue without setting price
-        }
-      }
+			if (!parsedLogs.length) throw new Error('PaymentCreated event not found');
+			const { args } = parsedLogs[0] as any;
 
-      return {
-        hash,
-        paymentId,
-      };
-    } catch (error) {
-      console.error('Payment creation failed:', error);
-      throw error;
-    }
-  }
+			const paymentId = (args.id ?? args.paymentId) as bigint;
 
-  async getPayment(paymentId: bigint): Promise<Payment> {
-    const publicClient = getPublicClient(this.chainId);
-    const contractAddress = getContractAddress(this.chainId, 'PaymentCore');
+			// Set oracle price if we have one (owner-only function for demo)
+			if (parseFloat(oraclePrice) > 0) {
+				try {
+					await this.setOraclePrice(
+						paymentId,
+						BigInt(Math.round(parseFloat(oraclePrice) * 1e8)),
+						senderAddress
+					);
+				} catch (oraclePriceError) {
+					console.warn('Failed to set oracle price:', oraclePriceError);
+					// Continue without setting price
+				}
+			}
 
-    try {
-      const result = (await publicClient.readContract({
-        address: contractAddress,
-        abi: PaymentCoreABI,
-        functionName: 'getPayment',
-        args: [paymentId],
-      })) as any;
+			return {
+				hash,
+				paymentId
+			};
+		} catch (error) {
+			console.error('Payment creation failed:', error);
+			throw error;
+		}
+	}
 
-      // Map the contract result (tuple) to our Payment interface
-      // Struct order: id, sender, recipient, token, amount, fee, status, createdAt, completedAt, metadataURI, receiptCID, senderENS, recipientENS, oraclePrice, randomSeed
-      const arr = Array.isArray(result) ? (result as any[]) : (Object.values(result) as any[]);
-      return {
-        id: paymentId,
-        sender: arr[1] as Address,
-        recipient: arr[2] as Address,
-        token: arr[3] as Address,
-        amount: arr[4] as bigint,
-        fee: arr[5] as bigint,
-        status: this.mapStatus(Number(arr[6] ?? 0)),
-        createdAt: arr[7] as bigint,
-        completedAt: arr[8] as bigint,
-        metadataURI: arr[9] as string,
-        receiptCID: arr[10] as string,
-        senderENS: arr[11] as string,
-        recipientENS: arr[12] as string,
-        oraclePrice: (arr[13] as bigint).toString(),
-        randomSeed: arr[14] as string,
-      };
-    } catch (error) {
-      console.error('Failed to get payment:', error);
-      throw error;
-    }
-  }
+	async getPayment(paymentId: bigint): Promise<Payment> {
+		const publicClient = getPublicClient(this.chainId);
+		const contractAddress = getContractAddress(this.chainId, 'PaymentCore');
 
-  async completePayment(paymentId: bigint, senderAddress: Address): Promise<string> {
-    const walletClient = getWalletClient(this.chainId);
-    const publicClient = getPublicClient(this.chainId);
-    const contractAddress = getContractAddress(this.chainId, 'PaymentCore');
+		try {
+			const result = (await publicClient.readContract({
+				address: contractAddress,
+				abi: PaymentCoreABI,
+				functionName: 'getPayment',
+				args: [paymentId]
+			})) as any;
 
-    try {
-      const { request } = await publicClient.simulateContract({
-        address: contractAddress,
-        abi: PaymentCoreABI,
-        functionName: 'completePayment',
-        args: [paymentId],
-        account: senderAddress,
-      });
+			// Map the contract result (tuple) to our Payment interface
+			// Struct order: id, sender, recipient, token, amount, fee, status, createdAt, completedAt, metadataURI, receiptCID, senderENS, recipientENS, oraclePrice, randomSeed
+			const arr = Array.isArray(result) ? (result as any[]) : (Object.values(result) as any[]);
+			return {
+				id: paymentId,
+				sender: arr[1] as Address,
+				recipient: arr[2] as Address,
+				token: arr[3] as Address,
+				amount: arr[4] as bigint,
+				fee: arr[5] as bigint,
+				status: this.mapStatus(Number(arr[6] ?? 0)),
+				createdAt: arr[7] as bigint,
+				completedAt: arr[8] as bigint,
+				metadataURI: arr[9] as string,
+				receiptCID: arr[10] as string,
+				senderENS: arr[11] as string,
+				recipientENS: arr[12] as string,
+				oraclePrice: (arr[13] as bigint).toString(),
+				randomSeed: arr[14] as string
+			};
+		} catch (error) {
+			console.error('Failed to get payment:', error);
+			throw error;
+		}
+	}
 
-      return await walletClient.writeContract(request);
-    } catch (error) {
-      console.error('Payment completion failed:', error);
-      throw error;
-    }
-  }
+	async completePayment(paymentId: bigint, senderAddress: Address): Promise<string> {
+		const walletClient = getWalletClient(this.chainId);
+		const publicClient = getPublicClient(this.chainId);
+		const contractAddress = getContractAddress(this.chainId, 'PaymentCore');
 
-  async refundPayment(paymentId: bigint, senderAddress: Address): Promise<string> {
-    const walletClient = getWalletClient(this.chainId);
-    const publicClient = getPublicClient(this.chainId);
-    const contractAddress = getContractAddress(this.chainId, 'PaymentCore');
+		try {
+			const { request } = await publicClient.simulateContract({
+				address: contractAddress,
+				abi: PaymentCoreABI,
+				functionName: 'completePayment',
+				args: [paymentId],
+				account: senderAddress
+			});
 
-    try {
-      const { request } = await publicClient.simulateContract({
-        address: contractAddress,
-        abi: PaymentCoreABI,
-        functionName: 'refundPayment',
-        args: [paymentId],
-        account: senderAddress,
-      });
+			return await walletClient.writeContract(request);
+		} catch (error) {
+			console.error('Payment completion failed:', error);
+			throw error;
+		}
+	}
 
-      return await walletClient.writeContract(request);
-    } catch (error) {
-      console.error('Payment refund failed:', error);
-      throw error;
-    }
-  }
+	async refundPayment(paymentId: bigint, senderAddress: Address): Promise<string> {
+		const walletClient = getWalletClient(this.chainId);
+		const publicClient = getPublicClient(this.chainId);
+		const contractAddress = getContractAddress(this.chainId, 'PaymentCore');
 
-  async getUserPayments(userAddress: Address, sent: boolean = true): Promise<bigint[]> {
-    const publicClient = getPublicClient(this.chainId);
-    const contractAddress = getContractAddress(this.chainId, 'PaymentCore');
+		try {
+			const { request } = await publicClient.simulateContract({
+				address: contractAddress,
+				abi: PaymentCoreABI,
+				functionName: 'refundPayment',
+				args: [paymentId],
+				account: senderAddress
+			});
 
-    try {
-      const result = await publicClient.readContract({
-        address: contractAddress,
-        abi: PaymentCoreABI,
-        functionName: sent ? 'getSenderPayments' : 'getRecipientPayments',
-        args: [userAddress],
-      }) as bigint[];
+			return await walletClient.writeContract(request);
+		} catch (error) {
+			console.error('Payment refund failed:', error);
+			throw error;
+		}
+	}
 
-      return result;
-    } catch (error) {
-      console.error('Failed to get user payments:', error);
-      throw error;
-    }
-  }
+	async getUserPayments(userAddress: Address, sent: boolean = true): Promise<bigint[]> {
+		const publicClient = getPublicClient(this.chainId);
+		const contractAddress = getContractAddress(this.chainId, 'PaymentCore');
 
-  private mapStatus(status: number): PaymentStatus {
-    switch (status) {
-      case 0: return 'pending';
-      case 1: return 'completed';
-      case 2: return 'refunded';
-      case 3: return 'cancelled';
-      default: return 'pending';
-    }
-  }
+		try {
+			const result = (await publicClient.readContract({
+				address: contractAddress,
+				abi: PaymentCoreABI,
+				functionName: sent ? 'getSenderPayments' : 'getRecipientPayments',
+				args: [userAddress]
+			})) as bigint[];
 
-  formatAmount(amount: bigint, tokenAddress?: Address): string {
-    if (tokenAddress) {
-      const tokenInfo = getTokenInfo(this.chainId, tokenAddress);
-      const decimals = tokenInfo?.decimals || 18;
-      return formatUnits(amount, decimals);
-    }
-    return formatEther(amount); // Default to ETH formatting
-  }
+			return result;
+		} catch (error) {
+			console.error('Failed to get user payments:', error);
+			throw error;
+		}
+	}
 
-  getContractAddress(): Address {
-    return getContractAddress(this.chainId, 'PaymentCore');
-  }
+	private mapStatus(status: number): PaymentStatus {
+		switch (status) {
+			case 0:
+				return 'pending';
+			case 1:
+				return 'completed';
+			case 2:
+				return 'refunded';
+			case 3:
+				return 'cancelled';
+			default:
+				return 'pending';
+		}
+	}
 
-  async setOraclePrice(paymentId: bigint, price: bigint, senderAddress: Address): Promise<string> {
-    const walletClient = getWalletClient(this.chainId);
-    const publicClient = getPublicClient(this.chainId);
-    const contractAddress = getContractAddress(this.chainId, 'PaymentCore');
+	formatAmount(amount: bigint, tokenAddress?: Address): string {
+		if (tokenAddress) {
+			const tokenInfo = getTokenInfo(this.chainId, tokenAddress);
+			const decimals = tokenInfo?.decimals || 18;
+			return formatUnits(amount, decimals);
+		}
+		return formatEther(amount); // Default to ETH formatting
+	}
 
-    try {
-      const { request } = await publicClient.simulateContract({
-        address: contractAddress,
-        abi: PaymentCoreABI,
-        functionName: 'setOraclePrice',
-        args: [paymentId, price],
-        account: senderAddress,
-      });
+	getContractAddress(): Address {
+		return getContractAddress(this.chainId, 'PaymentCore');
+	}
 
-      return await walletClient.writeContract(request);
-    } catch (error) {
-      console.error('Failed to set oracle price:', error);
-      throw error;
-    }
-  }
+	async setOraclePrice(paymentId: bigint, price: bigint, senderAddress: Address): Promise<string> {
+		const walletClient = getWalletClient(this.chainId);
+		const publicClient = getPublicClient(this.chainId);
+		const contractAddress = getContractAddress(this.chainId, 'PaymentCore');
 
-  private async approveTokenIfNeeded(
-    tokenAddress: Address,
-    amount: bigint,
-    ownerAddress: Address
-  ): Promise<void> {
-    const publicClient = getPublicClient(this.chainId);
-    const walletClient = getWalletClient(this.chainId);
-    const contractAddress = getContractAddress(this.chainId, 'PaymentCore');
+		try {
+			const { request } = await publicClient.simulateContract({
+				address: contractAddress,
+				abi: PaymentCoreABI,
+				functionName: 'setOraclePrice',
+				args: [paymentId, price],
+				account: senderAddress
+			});
 
-    // ERC20 ABI for allowance and approve
-    const erc20ABI = [
-      {
-        name: 'allowance',
-        type: 'function',
-        stateMutability: 'view',
-        inputs: [
-          { name: 'owner', type: 'address' },
-          { name: 'spender', type: 'address' }
-        ],
-        outputs: [{ name: '', type: 'uint256' }]
-      },
-      {
-        name: 'approve',
-        type: 'function',
-        stateMutability: 'nonpayable',
-        inputs: [
-          { name: 'spender', type: 'address' },
-          { name: 'amount', type: 'uint256' }
-        ],
-        outputs: [{ name: '', type: 'bool' }]
-      }
-    ] as const;
+			return await walletClient.writeContract(request);
+		} catch (error) {
+			console.error('Failed to set oracle price:', error);
+			throw error;
+		}
+	}
 
-    try {
-      // Check current allowance
-      const currentAllowance = await publicClient.readContract({
-        address: tokenAddress,
-        abi: erc20ABI,
-        functionName: 'allowance',
-        args: [ownerAddress, contractAddress],
-      }) as bigint;
+	private async approveTokenIfNeeded(
+		tokenAddress: Address,
+		amount: bigint,
+		ownerAddress: Address
+	): Promise<void> {
+		const publicClient = getPublicClient(this.chainId);
+		const walletClient = getWalletClient(this.chainId);
+		const contractAddress = getContractAddress(this.chainId, 'PaymentCore');
 
-      // If allowance is sufficient, no approval needed
-      if (currentAllowance >= amount) {
-        console.log('Sufficient token allowance already exists');
-        return;
-      }
+		// ERC20 ABI for allowance and approve
+		const erc20ABI = [
+			{
+				name: 'allowance',
+				type: 'function',
+				stateMutability: 'view',
+				inputs: [
+					{ name: 'owner', type: 'address' },
+					{ name: 'spender', type: 'address' }
+				],
+				outputs: [{ name: '', type: 'uint256' }]
+			},
+			{
+				name: 'approve',
+				type: 'function',
+				stateMutability: 'nonpayable',
+				inputs: [
+					{ name: 'spender', type: 'address' },
+					{ name: 'amount', type: 'uint256' }
+				],
+				outputs: [{ name: '', type: 'bool' }]
+			}
+		] as const;
 
-      console.log('Token approval required, requesting approval...');
+		try {
+			// Check current allowance
+			const currentAllowance = (await publicClient.readContract({
+				address: tokenAddress,
+				abi: erc20ABI,
+				functionName: 'allowance',
+				args: [ownerAddress, contractAddress]
+			})) as bigint;
 
-      // Request approval for the required amount
-      const { request } = await publicClient.simulateContract({
-        address: tokenAddress,
-        abi: erc20ABI,
-        functionName: 'approve',
-        args: [contractAddress, amount],
-        account: ownerAddress,
-      });
+			// If allowance is sufficient, no approval needed
+			if (currentAllowance >= amount) {
+				console.log('Sufficient token allowance already exists');
+				return;
+			}
 
-      const hash = await walletClient.writeContract(request);
-      
-      // Wait for approval transaction to be mined
-      await publicClient.waitForTransactionReceipt({ hash });
-      
-      console.log('Token approval successful');
+			console.log('Token approval required, requesting approval...');
 
-    } catch (error) {
-      console.error('Token approval failed:', error);
-      throw new Error('Token approval failed. Please try again.');
-    }
-  }
+			// Request approval for the required amount
+			const { request } = await publicClient.simulateContract({
+				address: tokenAddress,
+				abi: erc20ABI,
+				functionName: 'approve',
+				args: [contractAddress, amount],
+				account: ownerAddress
+			});
+
+			const hash = await walletClient.writeContract(request);
+
+			// Wait for approval transaction to be mined
+			await publicClient.waitForTransactionReceipt({ hash });
+
+			console.log('Token approval successful');
+		} catch (error) {
+			console.error('Token approval failed:', error);
+			throw new Error('Token approval failed. Please try again.');
+		}
+	}
 }
 
 // Export singleton instances for each supported chain

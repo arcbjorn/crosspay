@@ -1,5 +1,11 @@
 // Re-export types from packages for cleaner imports
-import type { Payment as PaymentType, PaymentStatus as PaymentStatusType, Receipt as ReceiptType, ContractAddresses as ContractAddressesType, Address as AddressType } from '@packages/types/contracts';
+import type {
+	Payment as PaymentType,
+	PaymentStatus as PaymentStatusType,
+	Receipt as ReceiptType,
+	ContractAddresses as ContractAddressesType,
+	Address as AddressType
+} from '@packages/types/contracts';
 
 export type Payment = PaymentType;
 export type PaymentStatus = PaymentStatusType;

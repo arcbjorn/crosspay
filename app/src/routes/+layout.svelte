@@ -4,7 +4,7 @@
 	import WagmiProvider from '$lib/components/WagmiProvider.svelte';
 	import ToastContainer from '$lib/components/ToastContainer.svelte';
 	import ThemeToggle from '$lib/components/ThemeToggle.svelte';
-	
+
 	let { children } = $props();
 </script>
 
@@ -14,17 +14,31 @@
 </svelte:head>
 
 <WagmiProvider>
-	<div class="min-h-screen bg-base-100">
-		<div class="navbar bg-base-100 border-b border-base-300">
+	<div class="bg-base-100 min-h-screen">
+		<div class="navbar bg-base-100 border-base-300 border-b">
 			<div class="navbar-start">
 				<!-- Mobile menu -->
 				<div class="dropdown lg:hidden">
 					<div tabindex="0" role="button" class="btn btn-ghost">
-						<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h8m-8 6h16" />
+						<svg
+							xmlns="http://www.w3.org/2000/svg"
+							class="h-5 w-5"
+							fill="none"
+							viewBox="0 0 24 24"
+							stroke="currentColor"
+						>
+							<path
+								stroke-linecap="round"
+								stroke-linejoin="round"
+								stroke-width="2"
+								d="M4 6h16M4 12h8m-8 6h16"
+							/>
 						</svg>
 					</div>
-					<ul role="menu" class="menu menu-sm dropdown-content mt-3 z-[1] p-2 shadow bg-base-100 rounded-box w-52">
+					<ul
+						role="menu"
+						class="menu menu-sm dropdown-content bg-base-100 rounded-box z-[1] mt-3 w-52 p-2 shadow"
+					>
 						<li><a href="/">Home</a></li>
 						<li><a href="/pay">Pay</a></li>
 						<li><a href="/receipts">Receipts</a></li>
@@ -53,7 +67,7 @@
 					<li>
 						<details>
 							<summary>Services</summary>
-							<ul class="p-2 bg-base-100 shadow-lg min-w-48">
+							<ul class="bg-base-100 min-w-48 p-2 shadow-lg">
 								<li><a href="/oracles">Oracle Feeds</a></li>
 								<li><a href="/storage">Storage</a></li>
 								<li><a href="/ens">ENS Names</a></li>
@@ -73,13 +87,13 @@
 			{@render children?.()}
 		</main>
 
-		<footer class="footer footer-center p-4 bg-base-200 text-base-content mt-auto">
+		<footer class="footer footer-center bg-base-200 text-base-content mt-auto p-4">
 			<div>
 				<p>© 2025 CrossPay Protocol. Built for the future of payments.</p>
 			</div>
 		</footer>
 	</div>
-	
+
 	<!-- Global Toast Container -->
 	<ToastContainer />
 </WagmiProvider>

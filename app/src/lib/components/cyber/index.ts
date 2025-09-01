@@ -24,55 +24,55 @@ export { default as InvoiceParser } from './InvoiceParser.svelte';
 
 // Component Types
 export interface CyberButtonProps {
-  variant?: 'primary' | 'secondary' | 'danger';
-  size?: 'sm' | 'md' | 'lg';
-  disabled?: boolean;
-  loading?: boolean;
-  href?: string;
-  glitch?: boolean;
+	variant?: 'primary' | 'secondary' | 'danger';
+	size?: 'sm' | 'md' | 'lg';
+	disabled?: boolean;
+	loading?: boolean;
+	href?: string;
+	glitch?: boolean;
 }
 
 export interface CyberInputProps {
-  value?: string;
-  type?: string;
-  placeholder?: string;
-  disabled?: boolean;
-  error?: boolean;
-  label?: string;
-  terminal?: boolean;
+	value?: string;
+	type?: string;
+	placeholder?: string;
+	disabled?: boolean;
+	error?: boolean;
+	label?: string;
+	terminal?: boolean;
 }
 
 export interface CyberCardProps {
-  variant?: 'default' | 'mint' | 'lavender' | 'danger';
-  padding?: 'sm' | 'md' | 'lg';
-  scan?: boolean;
-  glow?: boolean;
-  matrix?: boolean;
+	variant?: 'default' | 'mint' | 'lavender' | 'danger';
+	padding?: 'sm' | 'md' | 'lg';
+	scan?: boolean;
+	glow?: boolean;
+	matrix?: boolean;
 }
 
 export interface PaymentTerminalProps {
-  loading?: boolean;
-  networks?: Array<{id: string, name: string, symbol: string}>;
+	loading?: boolean;
+	networks?: Array<{ id: string; name: string; symbol: string }>;
 }
 
 export interface SecurityMatrixProps {
-  validators?: Array<{
-    id: string;
-    address: string;
-    status: 'active' | 'inactive' | 'syncing';
-    stake: number;
-    uptime: number;
-  }>;
-  consensusStatus?: 'finalized' | 'pending' | 'error';
-  securityLevel?: 'low' | 'medium' | 'high' | 'maximum';
+	validators?: Array<{
+		id: string;
+		address: string;
+		status: 'active' | 'inactive' | 'syncing';
+		stake: number;
+		uptime: number;
+	}>;
+	consensusStatus?: 'finalized' | 'pending' | 'error';
+	securityLevel?: 'low' | 'medium' | 'high' | 'maximum';
 }
 
 export interface RiskMeterProps {
-  riskScore?: number;
-  factors?: Array<{
-    name: string;
-    impact: number;
-    description: string;
-  }>;
-  loading?: boolean;
+	riskScore?: number;
+	factors?: Array<{
+		name: string;
+		impact: number;
+		description: string;
+	}>;
+	loading?: boolean;
 }

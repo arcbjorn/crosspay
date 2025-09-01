@@ -3,14 +3,14 @@
 	<head>
 		<meta charset="utf-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
-		<link rel="preconnect" href="https://fonts.googleapis.com">
-		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+		<link rel="preconnect" href="https://fonts.googleapis.com" />
+		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 		%sveltekit.head%
 		<style>
 			body {
 				overflow-x: hidden;
 			}
-			
+
 			/* Cyberpunk scan line effect */
 			.scan-line::before {
 				content: '';
@@ -24,19 +24,19 @@
 				pointer-events: none;
 				z-index: 1000;
 			}
-			
+
 			/* Terminal cursor */
 			.terminal-cursor::after {
 				content: '_';
 				animation: cursorBlink 1s step-end infinite;
 				color: rgba(159, 239, 223, 0.6);
 			}
-			
+
 			/* Glitch text effect */
 			.glitch-text {
 				position: relative;
 			}
-			
+
 			.glitch-text::before,
 			.glitch-text::after {
 				content: attr(data-text);
@@ -46,14 +46,14 @@
 				width: 100%;
 				height: 100%;
 			}
-			
+
 			.glitch-text::before {
 				animation: glitch 0.3s ease-in-out infinite alternate-reverse;
 				color: rgba(255, 179, 186, 0.4);
 				z-index: -1;
 				clip: rect(24px, 550px, 90px, 0);
 			}
-			
+
 			.glitch-text::after {
 				animation: glitch 0.3s ease-in-out infinite alternate-reverse;
 				color: rgba(201, 179, 255, 0.35);
@@ -62,7 +62,10 @@
 			}
 		</style>
 	</head>
-	<body data-sveltekit-preload-data="hover" class="bg-cyber-bg-primary text-cyber-text-primary font-sans antialiased">
+	<body
+		data-sveltekit-preload-data="hover"
+		class="bg-cyber-bg-primary font-sans text-cyber-text-primary antialiased"
+	>
 		<div class="scan-line"></div>
 		<div style="display: contents">%sveltekit.body%</div>
 	</body>
