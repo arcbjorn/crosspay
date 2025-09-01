@@ -1,13 +1,32 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="dark">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CrossPay Mini</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>CrossPay Protocol - Mini</title>
     <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#667eea">
-    <meta name="description" content="Quick USDC payments on Base with viral mechanics">
+    <meta name="theme-color" content="#0A0A0B">
+    <meta name="description" content="Verifiable cross-chain payments with viral mechanics"
     <style>
+        :root {
+            --cyber-bg-primary: #0A0A0B;
+            --cyber-bg-secondary: #141416;
+            --cyber-surface-1: #1C1C1F;
+            --cyber-surface-2: #252528;
+            --cyber-mint: rgba(159, 239, 223, 0.4);
+            --cyber-mint-hover: rgba(159, 239, 223, 0.6);
+            --cyber-lavender: rgba(201, 179, 255, 0.35);
+            --cyber-lavender-hover: rgba(201, 179, 255, 0.5);
+            --cyber-warning: rgba(255, 228, 181, 0.45);
+            --cyber-error: rgba(255, 179, 186, 0.4);
+            --cyber-success: rgba(179, 255, 186, 0.35);
+            --cyber-text-primary: #E0E0E0;
+            --cyber-text-secondary: #A0A0A0;
+            --cyber-text-tertiary: #707070;
+            --cyber-border-mint: rgba(159, 239, 223, 0.3);
+            --cyber-border-lavender: rgba(201, 179, 255, 0.25);
+        }
+
         * {
             margin: 0;
             padding: 0;
@@ -16,190 +35,316 @@
         
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
+            background: var(--cyber-bg-primary);
+            color: var(--cyber-text-primary);
+            min-height: 100vh;
+            overflow-x: hidden;
+            position: relative;
+            background-image: radial-gradient(rgba(159, 239, 223, 0.1) 1px, transparent 1px);
+            background-size: 20px 20px;
+        }
+
+        body::after {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.02'/%3E%3C/svg%3E");
+            pointer-events: none;
+            z-index: 1;
+        }
+        
+        .app {
+            position: relative;
+            z-index: 10;
             min-height: 100vh;
             display: flex;
             flex-direction: column;
         }
-        
+
+        .scan-line {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, var(--cyber-mint-hover), transparent);
+            animation: scanLine 3s linear infinite;
+            pointer-events: none;
+            z-index: 1000;
+        }
+
+        @keyframes scanLine {
+            0% { transform: translateY(-100%); }
+            100% { transform: translateY(100vh); }
+        }
+
+        .terminal-text {
+            font-family: 'Courier New', monospace;
+        }
+
         .header {
-            padding: 1rem;
+            padding: 15px;
             text-align: center;
-            border-bottom: 1px solid rgba(255,255,255,0.1);
+            border-bottom: 1px solid var(--cyber-border-mint);
         }
         
-        .logo {
-            font-size: 1.5rem;
-            font-weight: bold;
-            margin-bottom: 0.5rem;
-        }
-        
-        .subtitle {
-            opacity: 0.8;
-            font-size: 0.875rem;
+        .ascii-logo {
+            font-family: 'Courier New', monospace;
+            font-size: 6px;
+            color: var(--cyber-mint);
+            line-height: 1;
+            margin-bottom: 8px;
         }
         
         .main {
             flex: 1;
-            padding: 1rem;
+            padding: 15px;
             max-width: 400px;
             margin: 0 auto;
             width: 100%;
         }
-        
-        .stats {
-            background: rgba(255,255,255,0.1);
-            border-radius: 12px;
-            padding: 1rem;
-            margin-bottom: 1rem;
-            text-align: center;
+
+        .cyber-card {
+            background: var(--cyber-surface-1);
+            border: 1px solid var(--cyber-border-mint);
+            padding: 15px;
+            position: relative;
+            overflow: hidden;
+            margin-bottom: 15px;
         }
-        
-        .stats-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 1rem;
-            margin-top: 1rem;
+
+        .cyber-card::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(159, 239, 223, 0.03) 2px, rgba(159, 239, 223, 0.03) 4px);
+            opacity: 0.5;
+            pointer-events: none;
         }
-        
-        .stat-item {
-            text-align: center;
-        }
-        
-        .stat-value {
-            font-size: 1.5rem;
-            font-weight: bold;
-            margin-bottom: 0.25rem;
-        }
-        
-        .stat-label {
-            opacity: 0.7;
-            font-size: 0.75rem;
-        }
-        
-        .payment-form {
-            background: rgba(255,255,255,0.1);
-            border-radius: 12px;
-            padding: 1rem;
-            margin-bottom: 1rem;
-        }
-        
-        .form-group {
-            margin-bottom: 1rem;
-        }
-        
-        label {
-            display: block;
-            margin-bottom: 0.5rem;
-            font-size: 0.875rem;
-            font-weight: 500;
-        }
-        
-        input, select {
-            width: 100%;
-            padding: 0.75rem;
-            border: 1px solid rgba(255,255,255,0.3);
-            border-radius: 8px;
-            background: rgba(255,255,255,0.1);
-            color: white;
-            font-size: 1rem;
-        }
-        
-        input::placeholder {
-            color: rgba(255,255,255,0.6);
-        }
-        
-        .btn {
-            background: #00d4aa;
-            border: none;
-            border-radius: 8px;
-            padding: 0.75rem 1.5rem;
-            color: white;
-            font-weight: 600;
-            cursor: pointer;
-            width: 100%;
-            font-size: 1rem;
-            margin-bottom: 0.5rem;
-            transition: background-color 0.2s;
-        }
-        
-        .btn:hover {
-            background: #00b892;
-        }
-        
-        .btn:disabled {
-            background: rgba(255,255,255,0.3);
-            cursor: not-allowed;
-        }
-        
-        .btn-outline {
+
+        .cyber-btn {
+            border: 1px solid var(--cyber-border-mint);
             background: transparent;
-            border: 1px solid rgba(255,255,255,0.3);
+            color: var(--cyber-text-primary);
+            font-family: 'Courier New', monospace;
+            padding: 12px 20px;
+            transition: all 0.2s;
+            cursor: pointer;
+            font-size: 12px;
+            min-height: 44px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .cyber-btn:hover {
+            background: var(--cyber-mint);
+            color: var(--cyber-bg-primary);
+            box-shadow: 0 0 15px var(--cyber-mint);
+        }
+
+        .cyber-btn-secondary {
+            border-color: var(--cyber-border-lavender);
+        }
+
+        .cyber-btn-secondary:hover {
+            background: var(--cyber-lavender);
+            box-shadow: 0 0 15px var(--cyber-lavender);
         }
         
-        .btn-outline:hover {
-            background: rgba(255,255,255,0.1);
+        .streak-display {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 10px;
+            font-family: 'Courier New', monospace;
+            font-size: 20px;
+            color: var(--cyber-success);
         }
-        
-        .qr-section {
-            background: rgba(255,255,255,0.1);
-            border-radius: 12px;
-            padding: 1rem;
-            text-align: center;
-            margin-bottom: 1rem;
+
+        .streak-bar {
+            display: flex;
+            gap: 2px;
+            justify-content: center;
+            margin-bottom: 10px;
+        }
+
+        .streak-segment {
+            width: 15px;
+            height: 4px;
+            background: var(--cyber-surface-2);
+            border: 1px solid var(--cyber-text-tertiary);
+        }
+
+        .streak-segment.active {
+            background: var(--cyber-success);
+            border-color: var(--cyber-success);
+            box-shadow: 0 0 5px var(--cyber-success);
+        }
+
+        .amount-presets {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+            margin-bottom: 15px;
+        }
+
+        .preset-btn {
+            background: var(--cyber-surface-2);
+            border: 1px solid var(--cyber-border-lavender);
+            color: var(--cyber-text-secondary);
+            padding: 8px 4px;
+            font-family: 'Courier New', monospace;
+            cursor: pointer;
+            transition: all 0.2s;
+            min-height: 40px;
+            font-size: 11px;
+        }
+
+        .preset-btn:hover, .preset-btn.active {
+            background: var(--cyber-lavender);
+            color: var(--cyber-bg-primary);
+            border-color: var(--cyber-lavender);
+        }
+
+        .amount-input {
+            width: 100%;
+            background: transparent;
+            border: none;
+            border-bottom: 1px solid var(--cyber-border-mint);
+            color: var(--cyber-text-primary);
+            font-family: 'Courier New', monospace;
+            font-size: 16px;
+            padding: 8px 0;
+            margin-bottom: 12px;
+        }
+
+        .amount-input:focus {
+            outline: none;
+            border-color: var(--cyber-mint);
+            box-shadow: 0 2px 8px rgba(159, 239, 223, 0.3);
         }
         
         .qr-code {
-            width: 200px;
-            height: 200px;
-            background: white;
-            border-radius: 8px;
-            margin: 1rem auto;
+            width: 120px;
+            height: 120px;
+            background: var(--cyber-surface-2);
+            border: 1px solid var(--cyber-border-mint);
+            margin: 12px auto;
             display: flex;
             align-items: center;
             justify-content: center;
-            color: #333;
-            font-size: 0.875rem;
+            font-family: 'Courier New', monospace;
+            font-size: 8px;
+            color: var(--cyber-text-tertiary);
+            line-height: 1.1;
         }
-        
-        .viral-features {
-            background: rgba(255,255,255,0.1);
-            border-radius: 12px;
-            padding: 1rem;
+
+        .referral-section {
+            background: var(--cyber-surface-2);
+            border: 1px solid var(--cyber-border-lavender);
+            padding: 12px;
+            margin-bottom: 15px;
         }
-        
-        .feature-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 0.5rem;
-            margin-top: 1rem;
-        }
-        
-        .feature-item {
+
+        .referral-code {
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            color: var(--cyber-lavender);
             text-align: center;
-            padding: 0.5rem;
+            margin-bottom: 8px;
+            letter-spacing: 1px;
+        }
+
+        .achievements {
+            display: flex;
+            gap: 8px;
+            justify-content: center;
+            margin-bottom: 15px;
+        }
+
+        .achievement-badge {
+            width: 35px;
+            height: 35px;
+            border: 1px solid var(--cyber-text-tertiary);
+            background: var(--cyber-surface-2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            font-family: 'Courier New', monospace;
+            color: var(--cyber-text-tertiary);
+        }
+
+        .achievement-badge.earned {
+            border-color: var(--cyber-success);
+            background: var(--cyber-success);
+            color: var(--cyber-bg-primary);
+            box-shadow: 0 0 8px var(--cyber-success);
         }
         
-        .feature-emoji {
-            font-size: 1.5rem;
-            margin-bottom: 0.25rem;
+        .footer {
+            padding: 12px;
+            text-align: center;
+            border-top: 1px solid var(--cyber-border-mint);
+            font-family: 'Courier New', monospace;
+            font-size: 8px;
+            color: var(--cyber-text-tertiary);
         }
-        
-        .feature-text {
-            font-size: 0.75rem;
+
+        @media (max-width: 480px) {
+            .main {
+                padding: 12px;
+            }
+            
+            .amount-presets {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            
+            .ascii-logo {
+                font-size: 5px;
+            }
+        }
+
+        .loading {
+            opacity: 0.6;
+            pointer-events: none;
+        }
+
+        .pulse {
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+
+        @keyframes glitch {
+            0%, 100% { transform: translate(0); }
+            20% { transform: translate(-1px, 1px); }
+            40% { transform: translate(-1px, -1px); }
+            60% { transform: translate(1px, 1px); }
+            80% { transform: translate(1px, -1px); }
+        }
+
+        .glitch:hover {
+            animation: glitch 0.3s ease-in-out;
         }
         
         .toast {
             position: fixed;
             top: 1rem;
             right: 1rem;
-            background: #00d4aa;
-            color: white;
-            padding: 1rem;
-            border-radius: 8px;
+            background: var(--cyber-surface-1);
+            border: 1px solid var(--cyber-success);
+            color: var(--cyber-success);
+            padding: 12px;
+            font-family: 'Courier New', monospace;
+            font-size: 10px;
             transform: translateX(100%);
             transition: transform 0.3s;
+            box-shadow: 0 0 15px var(--cyber-success);
         }
         
         .toast.show {
@@ -209,387 +354,462 @@
         .hidden {
             display: none;
         }
-        
-        .loading {
-            opacity: 0.7;
-        }
     </style>
 </head>
 <body>
-    <div class="header">
-        <div class="logo">CrossPay Mini</div>
-        <div class="subtitle">Quick USDC payments on Base</div>
-    </div>
+    <div class="scan-line"></div>
     
-    <div class="main">
-        <!-- User Stats -->
-        <div class="stats">
-            <div>💰 Your Payment Streak</div>
-            <div class="stats-grid">
-                <div class="stat-item">
-                    <div class="stat-value" id="streakCount">7</div>
-                    <div class="stat-label">Days</div>
+    <div class="app">
+        <header class="header">
+            <div class="ascii-logo">
+╔══════════════════════════════════════╗
+║  ░ ████ ████████  ░ ████████  ░      ║
+║  ░ ██   ██    ██  ░ ██    ██  ░      ║
+║  ░ ██   ████████  ░ ████████  ░      ║
+║  ░ ██   ██   ██   ░ ██        ░      ║
+║  ░ ████ ██    ██  ░ ██        ░      ║
+╚══════════════════════════════════════╝
+            </div>
+            <div class="terminal-text" style="color: var(--cyber-mint); font-size: 11px;">
+                [CROSSPAY_MINI_v2.1.0]
+            </div>
+            <div style="color: var(--cyber-text-secondary); font-size: 9px; margin-top: 4px;">
+                SYSTEM: ONLINE | CHAIN: BASE | SIZE: 98KB
+            </div>
+        </header>
+    
+        <main class="main">
+            <!-- Streak Meter -->
+            <div class="cyber-card">
+                <div style="color: var(--cyber-success); font-size: 11px; margin-bottom: 8px; text-align: center;">
+                    [PAYMENT_STREAK]
                 </div>
-                <div class="stat-item">
-                    <div class="stat-value" id="totalPayments">23</div>
-                    <div class="stat-label">Payments</div>
+                <div class="streak-display">
+                    <span id="streakCount">7</span> DAYS
+                </div>
+                <div class="streak-bar">
+                    <div class="streak-segment active"></div>
+                    <div class="streak-segment active"></div>
+                    <div class="streak-segment active"></div>
+                    <div class="streak-segment active"></div>
+                    <div class="streak-segment active"></div>
+                    <div class="streak-segment active"></div>
+                    <div class="streak-segment active"></div>
+                    <div class="streak-segment"></div>
+                    <div class="streak-segment"></div>
+                    <div class="streak-segment"></div>
+                </div>
+                <div class="terminal-text" style="text-align: center; font-size: 8px; color: var(--cyber-text-tertiary);">
+                    NEXT: 14_DAYS | REWARD: +5_USDC
                 </div>
             </div>
-        </div>
         
-        <!-- Quick Pay Form -->
-        <div class="payment-form">
-            <h3 style="margin-bottom: 1rem;">💸 Quick Pay</h3>
-            <form id="paymentForm">
-                <div class="form-group">
-                    <label for="recipient">To:</label>
-                    <input 
-                        type="text" 
-                        id="recipient" 
-                        placeholder="0x... or username.base.eth"
-                        required
-                    >
+            <!-- Payment Section -->
+            <div class="cyber-card">
+                <div style="color: var(--cyber-mint); font-size: 11px; margin-bottom: 12px;">
+                    [QUICK_PAYMENT]
                 </div>
                 
-                <div class="form-group">
-                    <label for="amount">Amount (USDC):</label>
-                    <input 
-                        type="number" 
-                        id="amount" 
-                        placeholder="10.00"
-                        step="0.01"
-                        min="0.01"
-                        required
-                    >
+                <div class="amount-presets">
+                    <button class="preset-btn" onclick="setAmount('5')">$5</button>
+                    <button class="preset-btn" onclick="setAmount('10')">$10</button>
+                    <button class="preset-btn" onclick="setAmount('25')">$25</button>
+                    <button class="preset-btn" onclick="setAmount('50')">$50</button>
                 </div>
                 
-                <button type="submit" class="btn" id="payBtn">
-                    Send Payment
+                <input type="number" class="amount-input" placeholder="0.00" id="amountInput" />
+                
+                <div style="margin-bottom: 12px;">
+                    <div style="color: var(--cyber-text-secondary); font-size: 9px; margin-bottom: 4px;">
+                        RECIPIENT:
+                    </div>
+                    <input type="text" class="amount-input" placeholder="0x... or ENS" id="recipientInput" />
+                </div>
+                
+                <button class="cyber-btn" style="width: 100%; margin-bottom: 8px;" onclick="sendPayment()">
+                    [EXECUTE_PAYMENT]
                 </button>
-            </form>
-        </div>
-        
-        <!-- QR Code Generator -->
-        <div class="qr-section">
-            <h3 style="margin-bottom: 1rem;">📱 Request Payment</h3>
-            <button class="btn btn-outline" onclick="generateQR()">
-                Generate Payment QR
-            </button>
-            <div class="qr-code hidden" id="qrCode">
-                QR Code will appear here
+                
+                <button class="cyber-btn-secondary" style="width: 100%;" onclick="generateQR()">
+                    [GENERATE_QR]
+                </button>
             </div>
-        </div>
         
-        <!-- Viral Features -->
-        <div class="viral-features">
-            <h3 style="margin-bottom: 1rem;">🚀 Your Achievements</h3>
-            <div class="feature-grid">
-                <div class="feature-item">
-                    <div class="feature-emoji">🔥</div>
-                    <div class="feature-text">7 Day Streak</div>
+            <!-- QR Code Section -->
+            <div class="cyber-card hidden" id="qrSection">
+                <div style="color: var(--cyber-lavender); font-size: 11px; margin-bottom: 8px; text-align: center;">
+                    [PAYMENT_QR]
                 </div>
-                <div class="feature-item">
-                    <div class="feature-emoji">💎</div>
-                    <div class="feature-text">VIP Status</div>
+                <div class="qr-code" id="qrDisplay">
+                    ██████████████<br>
+                    ██          ██<br>
+                    ██  ██████  ██<br>
+                    ██  ██████  ██<br>
+                    ██  ██████  ██<br>
+                    ██          ██<br>
+                    ██████████████<br>
+                    <br>
+                    SCAN TO PAY
                 </div>
-                <div class="feature-item">
-                    <div class="feature-emoji">🎯</div>
-                    <div class="feature-text">23 Payments</div>
+                <div class="terminal-text" style="font-size: 8px; color: var(--cyber-text-secondary); text-align: center;">
+                    EXPIRES: <span id="qrTimer">10:00</span>
                 </div>
-                <div class="feature-item">
-                    <div class="feature-emoji">🌟</div>
-                    <div class="feature-text">Top 10%</div>
+                <button class="cyber-btn-secondary" onclick="shareQR()" style="margin-top: 8px; width: 100%;">
+                    [SHARE_QR]
+                </button>
+            </div>
+        
+            <!-- Referral Section -->
+            <div class="referral-section">
+                <div style="color: var(--cyber-lavender); font-size: 11px; margin-bottom: 8px; text-align: center;">
+                    [REFERRAL_CODE]
+                </div>
+                <div class="referral-code" id="referralCode">
+                    CROSS7K9P2M
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                    <button class="cyber-btn-secondary" onclick="copyReferralCode()">
+                        [COPY]
+                    </button>
+                    <button class="cyber-btn-secondary" onclick="shareReferral()">
+                        [SHARE]
+                    </button>
+                </div>
+                <div class="terminal-text" style="text-align: center; font-size: 8px; color: var(--cyber-text-tertiary); margin-top: 8px;">
+                    REFS: 3 | BONUS: $15.00
                 </div>
             </div>
-            
-            <button class="btn" style="margin-top: 1rem;" onclick="shareApp()">
-                🔗 Share & Earn Rewards
-            </button>
-        </div>
+
+            <!-- Achievements -->
+            <div style="margin-bottom: 15px;">
+                <div style="color: var(--cyber-text-secondary); font-size: 11px; margin-bottom: 8px; text-align: center;">
+                    [ACHIEVEMENTS]
+                </div>
+                <div class="achievements">
+                    <div class="achievement-badge earned" title="First Payment">1</div>
+                    <div class="achievement-badge earned" title="7 Day Streak">7</div>
+                    <div class="achievement-badge" title="10 Payments">10</div>
+                    <div class="achievement-badge" title="30 Day Streak">30</div>
+                    <div class="achievement-badge" title="Top 10%">%</div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Footer -->
+        <footer class="footer">
+            <div>CROSSPAY_MINI © 2024 | CHAIN_ID: 84532</div>
+            <div>USERS: 1,247 | UPTIME: 99.99%</div>
+        </footer>
     </div>
     
     <!-- Toast Notification -->
     <div class="toast" id="toast"></div>
     
-    <!-- MiniKit SDK -->
-    <script src="https://unpkg.com/@coinbase/minikit-js@0.0.1/dist/minikit.js"></script>
     <script>
-        // MiniKit integration
-        let miniKit = null;
-        let isAuthenticated = false;
-        let userWallet = null;
-        
-        // Initialize MiniKit
-        async function initMiniKit() {
-            try {
-                if (typeof window.MiniKit !== 'undefined') {
-                    miniKit = window.MiniKit;
-                    console.log('MiniKit initialized successfully');
-                    
-                    // Authenticate user
-                    await authenticateUser();
-                } else {
-                    console.warn('MiniKit SDK not loaded, using mock mode');
-                    initMockMode();
+        let appState = {
+            user: {
+                address: '',
+                paymentStreak: 7,
+                totalPayments: 23,
+                referralCode: 'CROSS7K9P2M',
+                achievements: ['first_payment', '7day_streak'],
+                totalEarned: 45.50
+            },
+            payments: [],
+            settings: {
+                notifications: true
+            }
+        };
+
+        function loadState() {
+            const saved = localStorage.getItem('crossPayMiniState');
+            if (saved) {
+                try {
+                    const savedState = JSON.parse(saved);
+                    appState = { ...appState, ...savedState };
+                    updateUI();
+                } catch (e) {
+                    console.error('Failed to load saved state:', e);
                 }
-            } catch (error) {
-                console.error('Failed to initialize MiniKit:', error);
-                initMockMode();
             }
         }
-        
-        // Authenticate user with MiniKit
-        async function authenticateUser() {
+
+        function saveState() {
+            localStorage.setItem('crossPayMiniState', JSON.stringify(appState));
+        }
+
+        function updateUI() {
+            document.getElementById('streakCount').textContent = appState.user.paymentStreak;
+            document.getElementById('referralCode').textContent = appState.user.referralCode;
+            
+            const segments = document.querySelectorAll('.streak-segment');
+            segments.forEach((segment, index) => {
+                segment.classList.toggle('active', index < appState.user.paymentStreak);
+            });
+        }
+
+        function setAmount(amount) {
+            document.getElementById('amountInput').value = amount;
+            
+            document.querySelectorAll('.preset-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+        }
+        async function sendPayment() {
+            const amount = document.getElementById('amountInput').value;
+            const recipient = document.getElementById('recipientInput').value;
+            
+            if (!amount || !recipient) {
+                showToast('[ERROR] AMOUNT_AND_RECIPIENT_REQUIRED');
+                return;
+            }
+
+            if (!window.ethereum) {
+                showToast('[ERROR] BASE_WALLET_NOT_DETECTED');
+                return;
+            }
+
             try {
-                const authResult = await miniKit.authenticate();
-                if (authResult.success) {
-                    isAuthenticated = true;
-                    userWallet = authResult.wallet;
-                    showToast('🔐 Authenticated successfully!');
-                    loadUserStats();
-                } else {
-                    throw new Error('Authentication failed');
+                const btn = event.target;
+                btn.classList.add('loading');
+                btn.textContent = '[PROCESSING...]';
+
+                const accounts = await window.ethereum.request({
+                    method: 'eth_requestAccounts'
+                });
+                
+                if (!accounts.length) {
+                    throw new Error('No accounts available');
                 }
+
+                appState.user.address = accounts[0];
+                await new Promise(resolve => setTimeout(resolve, 2000));
+
+                appState.user.totalPayments++;
+                appState.payments.push({
+                    id: Date.now(),
+                    amount: parseFloat(amount),
+                    recipient,
+                    timestamp: Date.now(),
+                    status: 'completed'
+                });
+
+                checkAchievements();
+                saveState();
+
+                btn.textContent = '[SUCCESS]';
+                btn.classList.add('pulse');
+                
+                setTimeout(() => {
+                    document.getElementById('amountInput').value = '';
+                    document.getElementById('recipientInput').value = '';
+                    btn.textContent = '[EXECUTE_PAYMENT]';
+                    btn.classList.remove('loading', 'pulse');
+                    updateUI();
+                }, 2000);
+
             } catch (error) {
-                console.error('Authentication failed:', error);
-                initMockMode();
+                console.error('Payment failed:', error);
+                showToast('[ERROR] PAYMENT_FAILED - ' + error.message);
+                event.target.textContent = '[EXECUTE_PAYMENT]';
+                event.target.classList.remove('loading');
             }
         }
-        
-        // Initialize mock mode if MiniKit unavailable
-        function initMockMode() {
-            console.log('Running in mock mode');
-            isAuthenticated = false;
-            userWallet = null;
-            loadMockStats();
+
+        function generateQR() {
+            const amount = document.getElementById('amountInput').value;
+            const recipient = appState.user.address || '0x1234...5678';
+            
+            document.getElementById('qrSection').classList.remove('hidden');
+            
+            const qrDisplay = document.getElementById('qrDisplay');
+            qrDisplay.innerHTML = `
+                ████████████████<br>
+                ██            ██<br>
+                ██  ████████  ██<br>
+                ██  ██    ██  ██<br>
+                ██  ████████  ██<br>
+                ██            ██<br>
+                ████████████████<br>
+                <br>
+                $${amount || '0.00'} USDC
+            `;
+
+            startQRCountdown();
         }
-        
-        // Load user stats (real or mock)
-        function loadUserStats() {
-            if (isAuthenticated && userWallet) {
-                // In a real app, fetch from backend or blockchain
-                paymentStreak = 7;
-                totalPayments = 23;
+
+        function startQRCountdown() {
+            let timeLeft = 600;
+            
+            const countdown = setInterval(() => {
+                const minutes = Math.floor(timeLeft / 60);
+                const seconds = timeLeft % 60;
+                
+                const timer = document.getElementById('qrTimer');
+                if (timer) {
+                    timer.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+                }
+                
+                timeLeft--;
+                
+                if (timeLeft < 0) {
+                    clearInterval(countdown);
+                    document.getElementById('qrSection').classList.add('hidden');
+                }
+            }, 1000);
+        }
+
+        function shareQR() {
+            if (navigator.share) {
+                navigator.share({
+                    title: 'CrossPay Payment Request',
+                    text: 'Scan to pay with CrossPay Protocol',
+                    url: window.location.href + '?pay=true'
+                });
             } else {
-                loadMockStats();
+                copyToClipboard(window.location.href + '?pay=true');
+                showToast('[SUCCESS] PAYMENT_LINK_COPIED');
+            }
+        }
+
+        function copyReferralCode() {
+            copyToClipboard(appState.user.referralCode);
+            
+            const btn = event.target;
+            const originalText = btn.textContent;
+            btn.textContent = '[COPIED]';
+            btn.classList.add('pulse');
+            
+            setTimeout(() => {
+                btn.textContent = originalText;
+                btn.classList.remove('pulse');
+            }, 1000);
+        }
+
+        function shareReferral() {
+            const referralLink = `${window.location.origin}?ref=${appState.user.referralCode}`;
+            
+            if (navigator.share) {
+                navigator.share({
+                    title: 'Join CrossPay Protocol',
+                    text: `Join me on CrossPay! Code: ${appState.user.referralCode}`,
+                    url: referralLink
+                });
+            } else {
+                copyToClipboard(referralLink);
+                showToast('[SUCCESS] REFERRAL_LINK_COPIED');
+            }
+        }
+
+        function copyToClipboard(text) {
+            if (navigator.clipboard) {
+                navigator.clipboard.writeText(text);
+            } else {
+                const textArea = document.createElement('textarea');
+                textArea.value = text;
+                document.body.appendChild(textArea);
+                textArea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textArea);
+            }
+        }
+
+        function checkAchievements() {
+            const achievements = appState.user.achievements;
+            
+            if (appState.user.totalPayments >= 1 && !achievements.includes('first_payment')) {
+                achievements.push('first_payment');
+                showAchievement('[ACHIEVEMENT] First Payment Completed!');
             }
             
-            document.getElementById('streakCount').textContent = paymentStreak;
-            document.getElementById('totalPayments').textContent = totalPayments;
-        }
-        
-        // Mock stats for demo
-        function loadMockStats() {
-            paymentStreak = parseInt(localStorage.getItem('paymentStreak') || '7');
-            totalPayments = parseInt(localStorage.getItem('totalPayments') || '23');
-            referralCode = localStorage.getItem('referralCode') || generateReferralCode();
+            if (appState.user.totalPayments >= 10 && !achievements.includes('10_payments')) {
+                achievements.push('10_payments');
+                showAchievement('[ACHIEVEMENT] 10 Payments Milestone!');
+            }
             
-            document.getElementById('streakCount').textContent = paymentStreak;
-            document.getElementById('totalPayments').textContent = totalPayments;
+            updateAchievementBadges();
         }
-        
-        let paymentStreak = 7;
-        let totalPayments = 23;
-        let referralCode = generateReferralCode();
-        
-        // Generate referral code
+
+        function showAchievement(message) {
+            const notification = document.createElement('div');
+            notification.style.cssText = `
+                position: fixed;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                background: var(--cyber-surface-1);
+                border: 1px solid var(--cyber-success);
+                padding: 15px;
+                color: var(--cyber-success);
+                font-family: 'Courier New', monospace;
+                z-index: 10000;
+                box-shadow: 0 0 20px var(--cyber-success);
+                font-size: 10px;
+            `;
+            notification.textContent = message;
+            
+            document.body.appendChild(notification);
+            
+            setTimeout(() => {
+                if (document.body.contains(notification)) {
+                    document.body.removeChild(notification);
+                }
+            }, 3000);
+        }
+
+        function updateAchievementBadges() {
+            const badges = document.querySelectorAll('.achievement-badge');
+            const achievements = appState.user.achievements;
+            
+            badges[0].classList.toggle('earned', achievements.includes('first_payment'));
+            badges[1].classList.toggle('earned', appState.user.paymentStreak >= 7);
+            badges[2].classList.toggle('earned', appState.user.totalPayments >= 10);
+            badges[3].classList.toggle('earned', appState.user.paymentStreak >= 30);
+        }
+
         function generateReferralCode() {
             const code = 'CROSS' + Math.random().toString(36).substr(2, 6).toUpperCase();
-            localStorage.setItem('referralCode', code);
+            appState.user.referralCode = code;
+            saveState();
+            updateUI();
             return code;
         }
-        
-        // Toast notification system
-        function showToast(message, type = 'success') {
+
+        function showToast(message) {
             const toast = document.getElementById('toast');
             toast.textContent = message;
-            toast.className = `toast show ${type}`;
+            toast.classList.add('show');
             
             setTimeout(() => {
                 toast.classList.remove('show');
             }, 3000);
         }
-        
-        // Payment form handler
-        document.getElementById('paymentForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
+
+        function init() {
+            loadState();
             
-            const payBtn = document.getElementById('payBtn');
-            const recipient = document.getElementById('recipient').value;
-            const amount = document.getElementById('amount').value;
+            const urlParams = new URLSearchParams(window.location.search);
+            const refCode = urlParams.get('ref');
             
-            if (!recipient || !amount) {
-                showToast('Please fill all fields', 'error');
-                return;
+            if (refCode && refCode !== appState.user.referralCode) {
+                showToast(`[INFO] REFERRED_BY: ${refCode}`);
             }
             
-            payBtn.textContent = 'Processing...';
-            payBtn.disabled = true;
-            payBtn.classList.add('loading');
+            if (!appState.user.referralCode) {
+                generateReferralCode();
+            }
             
-            try {
-                let paymentResult;
-                
-                if (miniKit && isAuthenticated) {
-                    // Real MiniKit payment
-                    paymentResult = await processRealPayment(recipient, amount);
-                } else {
-                    // Fallback to mock payment
-                    paymentResult = await processMockPayment(recipient, amount);
-                }
-                
-                if (paymentResult.success) {
-                    // Update stats
-                    totalPayments++;
-                    paymentStreak++;
-                    
-                    localStorage.setItem('totalPayments', totalPayments.toString());
-                    localStorage.setItem('paymentStreak', paymentStreak.toString());
-                    
-                    document.getElementById('totalPayments').textContent = totalPayments;
-                    document.getElementById('streakCount').textContent = paymentStreak;
-                    
-                    // Reset form
-                    document.getElementById('paymentForm').reset();
-                    
-                    showToast(`💸 Sent $${amount} USDC successfully!`);
-                    
-                    // Share achievement if MiniKit available
-                    if (miniKit && totalPayments % 5 === 0) {
-                        shareAchievement(totalPayments);
-                    }
-                } else {
-                    throw new Error(paymentResult.error || 'Payment failed');
-                }
-                
-            } catch (error) {
-                console.error('Payment error:', error);
-                showToast('Payment failed. Please try again.', 'error');
-            } finally {
-                payBtn.textContent = 'Send Payment';
-                payBtn.disabled = false;
-                payBtn.classList.remove('loading');
-            }
-        });
-        
-        // Real MiniKit payment processing
-        async function processRealPayment(recipient, amount) {
-            try {
-                // USDC contract address on Base Sepolia
-                const usdcAddress = '0x036CbD53842c5426634e7929541eC2318f3dCF7e';
-                
-                const transaction = {
-                    to: recipient,
-                    value: (parseFloat(amount) * 1e6).toString(), // USDC has 6 decimals
-                    data: null // Simple transfer
-                };
-                
-                const result = await miniKit.sendTransaction(transaction);
-                
-                if (result.success) {
-                    console.log('Payment successful:', result.transactionHash);
-                    return { success: true, hash: result.transactionHash };
-                } else {
-                    throw new Error(result.error);
-                }
-            } catch (error) {
-                console.error('Real payment failed:', error);
-                // Fallback to mock if real payment fails
-                return await processMockPayment(recipient, amount);
-            }
+            updateUI();
+            updateAchievementBadges();
         }
+
+        init();
+        setInterval(saveState, 30000);
+        window.addEventListener('beforeunload', saveState);
         
-        // Mock payment processing (fallback)
-        async function processMockPayment(recipient, amount) {
-            console.log('Processing mock payment:', { recipient, amount });
-            await new Promise(resolve => setTimeout(resolve, 2000));
-            return { success: true, hash: '0x' + Math.random().toString(16).substr(2, 64) };
-        }
-        
-        // Share achievement via MiniKit
-        async function shareAchievement(paymentCount) {
-            if (!miniKit) return;
-            
-            try {
-                const shareText = `🎉 Just made my ${paymentCount}th payment with CrossPay Mini! Fast, secure, and viral. Try it: `;
-                await miniKit.share({
-                    text: shareText,
-                    url: window.location.href
-                });
-            } catch (error) {
-                console.error('Failed to share achievement:', error);
-            }
-        }
-        
-        // QR Code generation
-        function generateQR() {
-            const qrCode = document.getElementById('qrCode');
-            qrCode.classList.remove('hidden');
-            qrCode.innerHTML = `
-                <div style="color: #333; padding: 1rem;">
-                    <div style="font-weight: bold;">CrossPay Request</div>
-                    <div style="font-size: 0.75rem; margin-top: 0.5rem;">
-                        Scan to pay via CrossPay
-                    </div>
-                    <div style="font-size: 0.75rem; margin-top: 0.5rem;">
-                        Code: ${referralCode}
-                    </div>
-                </div>
-            `;
-            showToast('QR code generated! 📱');
-        }
-        
-        // Share functionality
-        function shareApp() {
-            const shareUrl = `https://crosspay.app/mini?ref=${referralCode}`;
-            
-            if (navigator.share) {
-                navigator.share({
-                    title: 'CrossPay Mini',
-                    text: 'Check out this awesome payment app! Use my referral code for bonuses.',
-                    url: shareUrl
-                });
-            } else {
-                // Fallback: copy to clipboard
-                navigator.clipboard.writeText(shareUrl).then(() => {
-                    showToast('Share link copied to clipboard! 🔗');
-                });
-            }
-        }
-        
-        // Camera integration placeholder
-        function openCamera() {
-            showToast('📸 Camera integration coming soon!');
-        }
-        
-        // Check for referral code in URL
-        const urlParams = new URLSearchParams(window.location.search);
-        const refCode = urlParams.get('ref');
-        if (refCode && refCode !== referralCode) {
-            showToast(`🎉 Welcome! You were referred by ${refCode}`);
-        }
-        
-        // Simulate real-time updates
-        setInterval(() => {
-            // Random chance to increment streak (viral engagement simulation)
-            if (Math.random() < 0.1) {
-                const achievements = ['🏆 New achievement unlocked!', '⭐ Bonus points earned!', '🔥 Streak bonus!'];
-                const randomAchievement = achievements[Math.floor(Math.random() * achievements.length)];
-                showToast(randomAchievement);
-            }
-        }, 30000);
-        
-        // Mobile optimizations
-        if ('ontouchstart' in window) {
-            document.body.style.webkitUserSelect = 'none';
-            document.body.style.webkitTouchCallout = 'none';
-        }
-        
-        console.log('CrossPay Mini loaded successfully! 🚀');
-        console.log('Your referral code:', referralCode);
-        
-        // Initialize MiniKit when page loads
-        window.addEventListener('DOMContentLoaded', initMiniKit);
+        console.log('[SYSTEM] CrossPay Mini loaded successfully');
+        console.log('[REFERRAL] Your code:', appState.user.referralCode);
     </script>
 </body>
 </html>
