@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/crosspay/relay-network/internal/p2p"
-	"github.com/crosspay/relay-network/internal/validator"
 )
 
 type Handler struct {
