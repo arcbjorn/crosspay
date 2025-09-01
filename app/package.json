@@ -51,6 +51,10 @@
 		"vitest-browser-svelte": "^0.1.0"
 	},
 	"dependencies": {
+		"@fontsource/ibm-plex-sans": "^5.2.6",
+		"@fontsource/inter": "^5.2.6",
+		"@fontsource/jetbrains-mono": "^5.2.6",
+		"@fontsource/space-mono": "^5.2.8",
 		"@playwright/test": "^1.55.0",
 		"@rainbow-me/rainbowkit": "^2.2.8",
 		"@wagmi/core": "^2.20.3",
