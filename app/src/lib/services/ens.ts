@@ -36,7 +36,7 @@ export class ENSService {
   /**
    * Resolve ENS name to Ethereum address
    */
-  async resolveName(ensName: string): Promise<Address | null> {
+  async resolveName(ensName: string): Promise<string | null> {
     if (!ensName.endsWith('.eth')) {
       return null;
     }
@@ -56,7 +56,7 @@ export class ENSService {
         return null;
       }
 
-      return data.address as Address;
+      return data.address;
     } catch (error) {
       console.error('ENS resolution request failed:', error);
       return null;
@@ -66,7 +66,7 @@ export class ENSService {
   /**
    * Reverse resolve Ethereum address to ENS name
    */
-  async lookupAddress(address: Address): Promise<string | null> {
+  async lookupAddress(address: string): Promise<string | null> {
     if (!address || !address.startsWith('0x')) {
       return null;
     }
@@ -129,8 +129,8 @@ export class ENSService {
   async registerSubname(
     subname: string, 
     domain: string, 
-    owner: Address,
-    signerAddress: Address
+    owner: string,
+    signerAddress: string
   ): Promise<SubnameResponse | null> {
     try {
       const response = await fetch(`${this.baseUrl}/register-subname`, {
@@ -162,7 +162,7 @@ export class ENSService {
   /**
    * Batch resolve multiple ENS names
    */
-  async batchResolve(ensNames: string[]): Promise<Record<string, Address | null>> {
+  async batchResolve(ensNames: string[]): Promise<Record<string, string | null>> {
     const validNames = ensNames.filter(name => name.endsWith('.eth'));
     
     if (validNames.length === 0) {
@@ -217,7 +217,7 @@ export class ENSService {
   /**
    * Format address for display (truncated)
    */
-  formatAddress(address: Address): string {
+  formatAddress(address: string): string {
     if (!address || address.length < 10) return address;
     return `${address.slice(0, 6)}...${address.slice(-4)}`;
   }
