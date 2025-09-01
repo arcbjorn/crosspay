@@ -213,7 +213,10 @@
           class="tranche-card" 
           class:selected={selectedTranche === key}
           style="border-color: {tranche.color}"
+          role="button"
+          tabindex="0"
           on:click={() => selectedTranche = key}
+          on:keydown={(e) => (e.key === 'Enter' || e.key === ' ') && (selectedTranche = key)}
         >
           <div class="tranche-header">
             <h4>{tranche.name}</h4>
