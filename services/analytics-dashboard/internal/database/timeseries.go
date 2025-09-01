@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"time"
 
-	_ "github.com/lib/pq"
+	_ "modernc.org/sqlite"
 )
 
 type TimeSeriesDB struct {
@@ -30,7 +30,7 @@ type QueryOptions struct {
 }
 
 func NewTimeSeriesDB(connectionString string) (*TimeSeriesDB, error) {
-	db, err := sql.Open("postgres", connectionString)
+	db, err := sql.Open("sqlite", connectionString)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to database: %w", err)
 	}
@@ -51,27 +51,17 @@ func NewTimeSeriesDB(connectionString string) (*TimeSeriesDB, error) {
 func (ts *TimeSeriesDB) createTables() error {
 	createMetricsTable := `
 	CREATE TABLE IF NOT EXISTS metrics (
-		id BIGSERIAL PRIMARY KEY,
-		timestamp TIMESTAMPTZ NOT NULL,
-		metric_name VARCHAR(255) NOT NULL,
-		value DOUBLE PRECISION NOT NULL,
-		tags JSONB,
-		created_at TIMESTAMPTZ DEFAULT NOW()
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		timestamp DATETIME NOT NULL,
+		metric_name TEXT NOT NULL,
+		value REAL NOT NULL,
+		tags TEXT,
+		created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 	);
 
 	CREATE INDEX IF NOT EXISTS idx_metrics_timestamp ON metrics(timestamp);
 	CREATE INDEX IF NOT EXISTS idx_metrics_name ON metrics(metric_name);
 	CREATE INDEX IF NOT EXISTS idx_metrics_name_timestamp ON metrics(metric_name, timestamp);
-	CREATE INDEX IF NOT EXISTS idx_metrics_tags ON metrics USING GIN(tags);
-
-	-- Create hypertable for TimescaleDB (if available)
-	-- This will fail gracefully if TimescaleDB is not installed
-	DO $$ 
-	BEGIN
-		PERFORM create_hypertable('metrics', 'timestamp', if_not_exists => TRUE);
-	EXCEPTION 
-		WHEN OTHERS THEN NULL;
-	END $$;
 	`
 
 	_, err := ts.db.Exec(createMetricsTable)
@@ -152,7 +142,7 @@ func (ts *TimeSeriesDB) Query(ctx context.Context, metric string, opts QueryOpti
 	tagFilters := ""
 	for key, value := range opts.Tags {
 		argIndex++
-		tagFilters += fmt.Sprintf(" AND tags->>'%s' = $%d", key, argIndex)
+		tagFilters += fmt.Sprintf(" AND json_extract(tags, '$.%s') = $%d", key, argIndex)
 		args = append(args, value)
 	}
 
@@ -163,8 +153,7 @@ func (ts *TimeSeriesDB) Query(ctx context.Context, metric string, opts QueryOpti
 		intervalSeconds := int(opts.Interval.Seconds())
 		query = fmt.Sprintf(`
 			SELECT 
-				date_trunc('second', timestamp) + 
-				INTERVAL '%d seconds' * (EXTRACT(epoch FROM timestamp)::int / %d) as timestamp,
+				datetime((strftime('%%s', timestamp) / %d) * %d, 'unixepoch') as timestamp,
 				metric_name,
 				%s(value) as value,
 				tags
