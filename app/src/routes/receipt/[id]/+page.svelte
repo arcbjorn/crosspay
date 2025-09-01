@@ -36,6 +36,7 @@
     txHash: '0xabcd1234567890abcdef1234567890abcdef1234567890abcdef1234567890ab',
     chainId: 4202,
     metadataURI: 'ipfs://QmExampleHash123456789abcdef',
+    receiptCID: 'QmExampleReceiptHash123456789abcdef',
     blockNumber: 1234567,
     gasUsed: 85000,
     gasPrice: '20000000000'
@@ -65,10 +66,10 @@
       };
       paymentChainId = chain.id;
       // Set transaction details if available (these may come from extended data)
-      txHash = 'txHash' in paymentData ? paymentData.txHash : '';
-      blockNumber = 'blockNumber' in paymentData ? paymentData.blockNumber : 0;
-      gasUsed = 'gasUsed' in paymentData ? paymentData.gasUsed : 0;
-      gasPrice = 'gasPrice' in paymentData ? paymentData.gasPrice : '';
+      txHash = paymentData?.['txHash'] || '';
+      blockNumber = paymentData?.['blockNumber'] || 0;
+      gasUsed = paymentData?.['gasUsed'] || 0;
+      gasPrice = paymentData?.['gasPrice'] || '';
       
     } catch (err) {
       console.error('Failed to load payment:', err);
