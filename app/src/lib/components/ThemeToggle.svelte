@@ -20,7 +20,7 @@
       {#if currentTheme === 'light'}☀️{:else if currentTheme === 'dark'}🌙{:else}🔄{/if}
     </span>
   </div>
-  <ul tabindex="0" class="dropdown-content menu p-2 shadow bg-base-100 rounded-box w-40">
+  <ul role="menu" class="dropdown-content menu p-2 shadow bg-base-100 rounded-box w-40">
     <li class="menu-title">Theme</li>
     {#each themes as themeOption}
       <li>
