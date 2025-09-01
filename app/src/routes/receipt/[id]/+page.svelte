@@ -37,6 +37,10 @@
     chainId: 4202,
     metadataURI: 'ipfs://QmExampleHash123456789abcdef',
     receiptCID: 'QmExampleReceiptHash123456789abcdef',
+    senderENS: '',
+    recipientENS: '',
+    oraclePrice: '',
+    randomSeed: '',
     blockNumber: 1234567,
     gasUsed: 85000,
     gasPrice: '20000000000'
@@ -65,11 +69,11 @@
         token: tokenInfo?.symbol || paymentData.token,
       };
       paymentChainId = chain.id;
-      // Set transaction details if available (these may come from extended data)
-      txHash = paymentData?.['txHash'] || '';
-      blockNumber = paymentData?.['blockNumber'] || 0;
-      gasUsed = paymentData?.['gasUsed'] || 0;
-      gasPrice = paymentData?.['gasPrice'] || '';
+      // Set transaction details - these come from the service layer
+      txHash = mockPayment.txHash; // Will be updated when service provides this data
+      blockNumber = mockPayment.blockNumber;
+      gasUsed = mockPayment.gasUsed;
+      gasPrice = mockPayment.gasPrice;
       
     } catch (err) {
       console.error('Failed to load payment:', err);
