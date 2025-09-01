@@ -159,9 +159,9 @@
 
           <!-- Approval Type Selection -->
           <div class="form-control">
-            <label class="label">
+            <div class="label">
               <span class="label-text font-medium">Approval Amount</span>
-            </label>
+            </div>
             <div class="flex gap-4">
               <label class="label cursor-pointer">
                 <input 
@@ -184,7 +184,7 @@
                 <span class="label-text ml-2">Maximum (Unlimited)</span>
               </label>
             </div>
-            <label class="label">
+            <div class="label">
               <span class="label-text-alt">
                 {#if approvalType === 'exact'}
                   Approve only the amount needed for this transaction
@@ -192,7 +192,7 @@
                   Approve unlimited amount to avoid future approvals (recommended)
                 {/if}
               </span>
-            </label>
+            </div>
           </div>
 
           <!-- Gas Estimate -->
@@ -231,7 +231,7 @@
         {/if}
       </div>
     </div>
-    <div class="modal-backdrop" on:click={handleCancel}></div>
+    <div class="modal-backdrop" role="button" tabindex="0" on:click={handleCancel} on:keydown={(e) => e.key === 'Escape' && handleCancel()}></div>
   </div>
 {/if}
 
