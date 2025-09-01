@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/crosspay/relay-network/internal/p2p"
+	"github.com/crosspay/relay-network/internal/validator"
 )
 
 type Handler struct {
@@ -22,8 +23,8 @@ type ValidatorNode interface {
 	GetStake() string
 	IsRegistered() bool
 	GetPendingValidationCount() int
-	ProcessValidationRequest(req *ValidationRequest) error
-	GetValidationStatus(requestID uint64) (*ValidationRequest, bool)
+	ProcessValidationRequest(req *p2p.ValidationMessage) error
+	GetValidationStatus(requestID uint64) (*validator.ValidationRequest, bool)
 	GetSignatures(requestID uint64) map[string]string
 }
 
@@ -124,27 +125,19 @@ func (h *Handler) RequestValidation(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	validationReq := &ValidationRequest{
-		ID:           payload.PaymentID, // Use payment ID as validation ID for simplicity
-		PaymentID:    payload.PaymentID,
-		MessageHash:  payload.MessageHash,
-		RequiredSigs: payload.RequiredSigs,
-		Deadline:     time.Now().Add(5 * time.Minute),
-		IsHighValue:  payload.IsHighValue,
+	p2pMsg := &p2p.ValidationMessage{
+		Type:        "validation_request",
+		RequestID:   payload.PaymentID, // Use payment ID as validation ID for simplicity
+		PaymentID:   payload.PaymentID,
+		MessageHash: payload.MessageHash,
+		Timestamp:   time.Now(),
 	}
 
-	if err := h.validator.ProcessValidationRequest(validationReq); err != nil {
+	if err := h.validator.ProcessValidationRequest(p2pMsg); err != nil {
 		http.Error(w, fmt.Sprintf("Failed to process validation request: %v", err), http.StatusInternalServerError)
 		return
 	}
 
-	p2pMsg := &p2p.ValidationMessage{
-		Type:        "validation_request",
-		RequestID:   validationReq.ID,
-		PaymentID:   validationReq.PaymentID,
-		MessageHash: validationReq.MessageHash,
-		Timestamp:   time.Now(),
-	}
 
 	if err := h.network.BroadcastValidationRequest(p2pMsg); err != nil {
 		log.Printf("Failed to broadcast validation request: %v", err)
@@ -152,9 +145,9 @@ func (h *Handler) RequestValidation(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
-		"request_id": validationReq.ID,
+		"request_id": p2pMsg.RequestID,
 		"status":     "requested",
-		"deadline":   validationReq.Deadline,
+		"deadline":   p2pMsg.Timestamp.Add(5 * time.Minute),
 	})
 }
 
